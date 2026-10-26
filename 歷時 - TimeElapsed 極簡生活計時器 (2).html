@@ -1,0 +1,2473 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>歷時 - TimeElapsed</title>
+  
+  <!-- PWA & Mobile Meta Tags -->
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="歷時" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Segoe UI"', 'Roboto', '"Noto Sans TC"', 'sans-serif'],
+            mono: ['"SF Mono"', 'Menlo', 'Monaco', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    input, textarea {
+      user-select: text;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="bg-neutral-100 text-neutral-900 dark:bg-black dark:text-neutral-100 min-h-screen flex flex-col justify-between font-sans antialiased transition-colors duration-200">
+
+  <!-- Main Mobile Shell -->
+  <div class="max-w-md w-full mx-auto flex-1 flex flex-col h-screen relative overflow-hidden bg-white dark:bg-neutral-950 border-x border-neutral-200 dark:border-neutral-900 shadow-xl">
+    
+    <!-- Top Header -->
+    <header class="pt-4 pb-2.5 px-4 flex items-center justify-between border-b border-neutral-100 dark:border-neutral-900 flex-shrink-0 z-30 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-md relative">
+      <div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-[11px] font-mono tracking-wider uppercase text-neutral-500 dark:text-neutral-400 font-bold" id="headerDate">TODAY</span>
+        </div>
+        <h1 class="text-lg font-black tracking-tight text-neutral-950 dark:text-white" id="viewTitle">歷時</h1>
+      </div>
+      <div class="flex items-center gap-1.5 relative">
+        <button id="themeToggleBtn" aria-label="切換深淺色" class="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900 transition text-neutral-600 dark:text-neutral-400">
+          <i class="ph ph-moon text-lg dark:hidden"></i>
+          <i class="ph ph-sun text-lg hidden dark:block"></i>
+        </button>
+        <button id="backupModalBtn" aria-label="資料備份與工具" class="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900 transition text-neutral-600 dark:text-neutral-400">
+          <i class="ph ph-hard-drive text-lg"></i>
+        </button>
+        
+        <!-- Navigation Menu Dropdown Button -->
+        <button id="navMenuBtn" aria-label="選單導覽" class="p-2 rounded-xl bg-neutral-100 dark:bg-neutral-900 hover:bg-neutral-200 dark:hover:bg-neutral-800 transition text-neutral-800 dark:text-neutral-200 flex items-center gap-1">
+          <i class="ph ph-list text-lg"></i>
+        </button>
+
+        <!-- Dropdown Menu Floating Panel -->
+        <div id="navDropdownMenu" class="hidden absolute right-0 top-11 w-40 bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-800 shadow-2xl p-1.5 space-y-1 z-50">
+          <button onclick="switchView('home'); closeNavMenu();" id="menuItemHome" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl transition bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+            <i class="ph ph-clock-countdown text-base"></i>
+            <span>首頁</span>
+          </button>
+          <button onclick="switchView('dictionary'); closeNavMenu();" id="menuItemDict" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl transition text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+            <i class="ph ph-books text-base"></i>
+            <span>辭典</span>
+          </button>
+          <button onclick="switchView('report'); closeNavMenu();" id="menuItemReport" class="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl transition text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+            <i class="ph ph-chart-pie-slice text-base"></i>
+            <span>報告</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Scrollable Views -->
+    <main class="flex-1 overflow-y-auto no-scrollbar px-3 pt-2.5 pb-6" id="mainContainer">
+      
+      <!-- VIEW 1: HOME -->
+      <section id="viewHome" class="space-y-3">
+        <!-- Top Search Bar -->
+        <div class="relative">
+          <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm"></i>
+          <input 
+            type="search" 
+            id="homeSearchInput" 
+            placeholder="搜尋或輸入新項目..." 
+            class="w-full bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-xs pl-8 pr-8 py-2 rounded-xl border border-transparent focus:border-neutral-400 dark:focus:border-neutral-700 focus:outline-none transition"
+          />
+          <button id="clearSearchBtn" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600">
+            <i class="ph ph-x-circle text-sm"></i>
+          </button>
+        </div>
+
+        <!-- Horizontal Category Filter Tabs -->
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-xs select-none" id="homeCategoryTabs"></div>
+
+        <!-- Quick Summary Stats Card with Blue Highlight Accent -->
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/60 dark:border-neutral-800/80">
+            <span class="text-[10px] text-neutral-400 font-medium">追蹤事項</span>
+            <p class="text-lg font-bold text-neutral-900 dark:text-neutral-100 leading-tight" id="totalItemsCount">0</p>
+          </div>
+          <!-- Today done card with dynamic blue styling -->
+          <div id="todayDoneCard" class="p-2.5 rounded-xl border transition-all duration-200 bg-neutral-50 dark:bg-neutral-900/60 border-neutral-200/60 dark:border-neutral-800/80">
+            <span class="text-[10px] text-neutral-400 font-medium" id="todayDoneLabel">今日已記錄</span>
+            <p class="text-lg font-bold text-neutral-900 dark:text-neutral-100 leading-tight" id="todayDoneCount">0</p>
+          </div>
+        </div>
+
+        <!-- Live Items List -->
+        <div class="space-y-3.5 pt-1" id="homeList"></div>
+
+        <!-- Empty State -->
+        <div id="homeEmptyState" class="hidden py-14 text-center space-y-2">
+          <div class="inline-flex p-3 rounded-full bg-neutral-100 dark:bg-neutral-900 text-neutral-400">
+            <i class="ph ph-hourglass-medium text-2xl"></i>
+          </div>
+          <p class="text-xs font-medium text-neutral-500">尚無追蹤項目</p>
+          <p class="text-[11px] text-neutral-400">在上方搜尋框輸入名稱即可直接建立</p>
+        </div>
+      </section>
+
+      <!-- VIEW 2: DICTIONARY -->
+      <section id="viewDictionary" class="space-y-3 hidden">
+        <!-- Sub tabs: Items / Categories / Archived -->
+        <div class="bg-neutral-100 dark:bg-neutral-900 p-1 rounded-xl flex items-center justify-between text-xs font-semibold">
+          <button id="dictSubTabItems" class="flex-1 py-1.5 rounded-lg text-center transition bg-white dark:bg-white text-neutral-950 dark:text-neutral-950 shadow-sm font-bold" onclick="switchDictSubTab('items')">全部項目</button>
+          <button id="dictSubTabCategories" class="flex-1 py-1.5 rounded-lg text-center transition text-neutral-500 dark:text-neutral-400 font-semibold" onclick="switchDictSubTab('categories')">分類清單</button>
+          <button id="dictSubTabArchived" class="flex-1 py-1.5 rounded-lg text-center transition text-neutral-500 dark:text-neutral-400 font-semibold" onclick="switchDictSubTab('archived')">已封存項目</button>
+        </div>
+
+        <!-- Search Bar -->
+        <div id="dictSearchBarContainer" class="relative">
+          <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm"></i>
+          <input 
+            type="search" 
+            id="dictSearchInput" 
+            placeholder="搜尋事項或分類..." 
+            class="w-full bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-xs pl-8 pr-3 py-2 rounded-xl border border-transparent focus:border-neutral-400 dark:focus:border-neutral-700 focus:outline-none transition"
+          />
+        </div>
+
+        <!-- Panel 1: Active Items -->
+        <div id="dictItemsPanel" class="space-y-2">
+          <div class="flex items-center justify-between px-1">
+            <span class="text-xs text-neutral-500 dark:text-neutral-400 font-medium">活躍中追蹤事項</span>
+            <span class="text-[11px] font-mono text-neutral-400" id="dictActiveCountBadge">0 項</span>
+          </div>
+          <div class="space-y-2" id="dictActiveList"></div>
+        </div>
+
+        <!-- Panel 2: Categories -->
+        <div id="dictCategoriesPanel" class="space-y-3 hidden">
+          <div class="flex gap-2">
+            <input 
+              type="text" 
+              id="newCategoryInput" 
+              placeholder="新增新分類 (例: 保健食品、居家環境)..." 
+              class="flex-1 bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-transparent focus:border-neutral-400 dark:focus:border-neutral-700 rounded-xl px-3 py-2 text-xs focus:outline-none"
+            />
+            <button 
+              id="addCategoryBtn" 
+              class="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-bold rounded-xl transition"
+            >
+              新增
+            </button>
+          </div>
+          <div class="flex items-center justify-between px-1">
+            <span class="text-xs text-neutral-500 dark:text-neutral-400 font-medium">分類及所屬項目一覽</span>
+            <span class="text-[11px] font-mono text-neutral-400" id="dictCategoriesCountBadge">0 類</span>
+          </div>
+          <div class="space-y-2.5" id="dictCategoryCardsList"></div>
+        </div>
+
+        <!-- Panel 3: Archived Items -->
+        <div id="dictArchivedPanel" class="space-y-2 hidden">
+          <div class="flex items-center justify-between px-1">
+            <span class="text-xs text-neutral-500 dark:text-neutral-400 font-medium">已封存項目</span>
+            <span class="text-[11px] font-mono text-neutral-400" id="dictArchivedCountBadge">0 項</span>
+          </div>
+          <div class="space-y-2" id="dictArchivedList"></div>
+        </div>
+
+        <div id="dictEmptyState" class="hidden py-10 text-center space-y-1">
+          <p class="text-xs text-neutral-400">目前沒有相符項目</p>
+        </div>
+      </section>
+
+      <!-- VIEW 3: REPORT -->
+      <section id="viewReport" class="space-y-4 hidden">
+        <!-- Period Switch Tabs: Day / Week / Month / Year -->
+        <div class="bg-neutral-100 dark:bg-neutral-900 p-1 rounded-xl flex items-center justify-between text-xs font-semibold">
+          <button class="report-period-tab flex-1 py-1.5 rounded-lg text-center transition bg-white dark:bg-white text-neutral-950 dark:text-neutral-950 shadow-sm font-bold" data-period="day">今日</button>
+          <button class="report-period-tab flex-1 py-1.5 rounded-lg text-center transition text-neutral-500 dark:text-neutral-400" data-period="week">本週</button>
+          <button class="report-period-tab flex-1 py-1.5 rounded-lg text-center transition text-neutral-500 dark:text-neutral-400" data-period="month">本月</button>
+          <button class="report-period-tab flex-1 py-1.5 rounded-lg text-center transition text-neutral-500 dark:text-neutral-400" data-period="year">今年</button>
+        </div>
+
+        <!-- Period summary count & interactive bar card -->
+        <div class="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/70 dark:border-neutral-800 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-neutral-500 dark:text-neutral-400" id="periodRangeLabel">區間統計</span>
+            <span class="text-xs font-mono font-bold text-neutral-900 dark:text-neutral-100" id="periodTotalCount">0 次操作</span>
+          </div>
+          <p class="text-[11px] text-neutral-400">點擊下方項目可將熱力月曆切換至該項目的獨立活動分佈</p>
+          <div class="space-y-1.5" id="periodItemsBarList"></div>
+        </div>
+
+        <!-- Dynamic Focused Heatmap Calendar Container -->
+        <div class="p-3 bg-neutral-50 dark:bg-neutral-900/60 rounded-2xl border border-neutral-200/70 dark:border-neutral-800 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 text-xs font-bold text-neutral-800 dark:text-neutral-200">
+              <i class="ph ph-calendar-blank text-neutral-500"></i>
+              <span>熱力月曆：</span>
+              <span id="calendarFocusItemLabel" class="font-bold text-neutral-950 dark:text-white px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-[11px]">全域總覽</span>
+            </div>
+            <button 
+              id="resetCalendarFocusBtn" 
+              onclick="setHeatmapFocusActivity(null)" 
+              class="hidden text-[10px] px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 font-semibold hover:bg-neutral-300"
+            >
+              看全域
+            </button>
+          </div>
+          <div id="reportCalendarContainer" class="space-y-1"></div>
+        </div>
+
+        <!-- Focused Item History Log Section -->
+        <div id="focusedHistorySection" class="p-3 bg-neutral-50 dark:bg-neutral-900/60 rounded-2xl border border-neutral-200/70 dark:border-neutral-800 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 text-xs font-bold text-neutral-800 dark:text-neutral-200">
+              <i class="ph ph-clock-counter-clockwise text-neutral-500"></i>
+              <span id="focusedHistoryTitle">鎖定項目的歷史明細</span>
+            </div>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-200/80 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300" id="focusedHistoryCountBadge">未鎖定</span>
+          </div>
+          <div id="focusedHistoryList" class="space-y-1.5 max-h-60 overflow-y-auto no-scrollbar"></div>
+        </div>
+
+        <!-- Dynamic Period-Bound Rankings Switcher Tab: Frequency Top 5 vs Regularity Top 5 -->
+        <div class="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/70 dark:border-neutral-800 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <!-- Ranking Switcher Tabs -->
+            <div class="inline-flex bg-neutral-200/80 dark:bg-neutral-800 p-0.5 rounded-lg text-xs font-semibold">
+              <button 
+                id="rankTabFrequencyBtn" 
+                onclick="switchReportRankTab('frequency')" 
+                class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white shadow-xs transition"
+              >
+                頻率排行 Top 5
+              </button>
+              <button 
+                id="rankTabRegularityBtn" 
+                onclick="switchReportRankTab('regularity')" 
+                class="px-2.5 py-1 rounded-md text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition"
+              >
+                規律排行 Top 5
+              </button>
+            </div>
+            <span class="text-[10px] font-mono text-neutral-400" id="reportRankSubLabel">次數排行</span>
+          </div>
+
+          <!-- Dynamic Ranking List Container -->
+          <div id="reportDynamicRankList" class="space-y-1.5"></div>
+        </div>
+
+        <!-- Overdue alerts block -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 text-neutral-800 dark:text-neutral-200 font-bold text-xs tracking-wider uppercase">
+              <i class="ph ph-clock-afternoon text-sm"></i>
+              <span>可能已逾期事項</span>
+            </div>
+            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold" id="overdueCountBadge">0</span>
+          </div>
+          <div id="overdueList" class="space-y-1.5"></div>
+        </div>
+
+        <!-- Collapsible Global History Log Section -->
+        <div class="pt-2 border-t border-neutral-100 dark:border-neutral-900">
+          <button 
+            id="toggleHistoryAccordionBtn" 
+            onclick="toggleHistoryLogAccordion()"
+            class="w-full flex items-center justify-between py-2 px-1 text-left text-xs font-bold text-neutral-700 dark:text-neutral-300 hover:text-neutral-950 dark:hover:text-white transition"
+          >
+            <div class="flex items-center gap-1.5">
+              <i class="ph ph-list-dashes text-sm"></i>
+              <span>全域歷史明細清單</span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-200/70 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400" id="historyLogTotalCount">0 筆</span>
+            </div>
+            <div class="flex items-center gap-1 text-[11px] text-neutral-400">
+              <span id="historyLogToggleLabel">展開檢視</span>
+              <i class="ph ph-caret-down transition-transform duration-200" id="historyLogCaret"></i>
+            </div>
+          </button>
+          
+          <div id="reportHistoryLogContainer" class="space-y-1.5 pt-1 hidden">
+            <div id="reportHistoryLogList" class="space-y-1 max-h-80 overflow-y-auto no-scrollbar"></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- MODAL: DATE RECORD DETAIL & NOTE ACTION -->
+    <div id="dateActionModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
+      <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3">
+        <div class="flex items-center justify-between pb-1 border-b border-neutral-100 dark:border-neutral-800">
+          <div>
+            <h3 class="font-bold text-sm text-neutral-900 dark:text-white" id="dateActionTitle">紀錄詳情</h3>
+            <p class="text-[11px] font-mono text-neutral-400" id="dateActionSub">2026/10/26</p>
+          </div>
+          <button id="closeDateActionBtn" class="p-1 rounded-full text-neutral-400 hover:text-neutral-600">
+            <i class="ph ph-x text-base"></i>
+          </button>
+        </div>
+        <div id="dateRecordsList" class="space-y-2 max-h-56 overflow-y-auto no-scrollbar"></div>
+      </div>
+    </div>
+
+    <!-- MODAL: QUICK CATEGORY PICKER -->
+    <div id="itemCategoryModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
+      <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3">
+        <div class="flex items-center justify-between pb-1 border-b border-neutral-100 dark:border-neutral-800">
+          <div>
+            <h3 class="font-bold text-sm text-neutral-900 dark:text-white" id="catModalTitle">分類管理</h3>
+          </div>
+          <button onclick="closeItemCategoryModal()" class="p-1 rounded-full text-neutral-400 hover:text-neutral-600">
+            <i class="ph ph-x text-base"></i>
+          </button>
+        </div>
+
+        <!-- Add new category inline -->
+        <div class="flex gap-1.5 pt-1">
+          <input 
+            type="text" 
+            id="catModalNewInput" 
+            placeholder="新增新分類..." 
+            class="flex-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 text-xs px-2.5 py-1.5 rounded-xl border border-transparent focus:border-neutral-400 dark:focus:border-neutral-600 focus:outline-none"
+          />
+          <button 
+            onclick="addCategoryFromModal()" 
+            class="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-bold rounded-xl transition"
+          >
+            建立
+          </button>
+        </div>
+
+        <!-- Category tag chips list -->
+        <div class="pt-1">
+          <div id="catModalChipsContainer" class="flex flex-wrap gap-1.5 max-h-44 overflow-y-auto no-scrollbar py-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: CONFIRMATION DIALOG -->
+    <div id="confirmDialog" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
+      <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-5 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3">
+        <div class="flex items-center gap-2 text-neutral-900 dark:text-white">
+          <i class="ph ph-warning-octagon text-xl"></i>
+          <h3 class="font-bold text-sm" id="confirmDialogTitle">確認操作</h3>
+        </div>
+        <p class="text-xs text-neutral-500 dark:text-neutral-400" id="confirmDialogMsg">確認要執行此操作嗎？</p>
+        <div class="flex gap-2 pt-2">
+          <button id="confirmCancelBtn" class="flex-1 py-2 text-xs font-semibold rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
+            取消
+          </button>
+          <button id="confirmOkBtn" class="flex-1 py-2 text-xs font-bold rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-950 shadow transition">
+            確認
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: BACKUP & RESTORE -->
+    <div id="backupModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
+      <div class="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl p-5 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-sm text-neutral-900 dark:text-white">資料管理與備份</h3>
+          <button id="closeBackupModalBtn" class="p-1 rounded-full text-neutral-400">
+            <i class="ph ph-x text-lg"></i>
+          </button>
+        </div>
+        <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
+          所有紀錄皆存放於本機 LocalStorage 中，無任何雲端上傳，支援完整離線運作。
+        </p>
+        <div class="space-y-2 pt-1 border-t border-neutral-100 dark:border-neutral-800">
+          <button id="exportDataBtn" class="w-full py-2.5 px-4 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition">
+            <i class="ph ph-download-simple text-base"></i>
+            <span>匯出備份檔案 (JSON)</span>
+          </button>
+
+          <label class="w-full py-2.5 px-4 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-xs font-semibold rounded-xl flex items-center justify-center gap-2 cursor-pointer text-neutral-800 dark:text-neutral-200 transition">
+            <i class="ph ph-upload-simple text-base"></i>
+            <span>匯入備份檔案</span>
+            <input type="file" id="importFileInput" accept=".json" class="hidden" />
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 opacity-0 translate-y-3 bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 px-3.5 py-2 rounded-full text-xs font-bold shadow-xl flex items-center gap-1.5">
+      <i class="ph ph-info text-sm"></i>
+      <span id="toastMsg">已完成操作</span>
+    </div>
+
+  </div>
+
+  <!-- APPLICATION LOGIC & INLINE PWA SERVICE WORKER -->
+  <script>
+    // --- PWA ASSETS & SERVICE WORKER INJECTION ---
+    (function setupPWAInstallation() {
+      const svgIconData = `data:image/svg+xml;charset=utf-8,` + encodeURIComponent(`
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+          <rect width="512" height="512" rx="112" fill="#0a0a0a"/>
+          <circle cx="256" cy="256" r="160" stroke="#f5f5f5" stroke-width="24" fill="none"/>
+          <polyline points="256,152 256,256 328,296" stroke="#3b82f6" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="256" cy="256" r="12" fill="#3b82f6"/>
+        </svg>
+      `.trim());
+
+      let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+      if (!appleIcon) {
+        appleIcon = document.createElement('link');
+        appleIcon.rel = 'apple-touch-icon';
+        document.head.appendChild(appleIcon);
+      }
+      appleIcon.href = svgIconData;
+
+      let favicon = document.querySelector('link[rel="icon"]');
+      if (!favicon) {
+        favicon = document.createElement('link');
+        favicon.rel = 'icon';
+        document.head.appendChild(favicon);
+      }
+      favicon.href = svgIconData;
+
+      const manifest = {
+        name: "歷時 - TimeElapsed 極簡生活計時器",
+        short_name: "歷時",
+        description: "紀錄生活瑣事的歷時與規律",
+        start_url: window.location.href,
+        scope: window.location.pathname,
+        display: "standalone",
+        orientation: "portrait",
+        background_color: "#0a0a0a",
+        theme_color: "#0a0a0a",
+        icons: [
+          {
+            src: svgIconData,
+            sizes: "192x192",
+            type: "image/svg+xml",
+            purpose: "any maskable"
+          },
+          {
+            src: svgIconData,
+            sizes: "512x512",
+            type: "image/svg+xml",
+            purpose: "any maskable"
+          }
+        ]
+      };
+
+      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+      const manifestUrl = URL.createObjectURL(manifestBlob);
+
+      let manifestLink = document.querySelector('link[rel="manifest"]');
+      if (!manifestLink) {
+        manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        document.head.appendChild(manifestLink);
+      }
+      manifestLink.href = manifestUrl;
+
+      if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+        const swScript = `
+          const CACHE_NAME = 'timeelapsed-pwa-v1';
+          self.addEventListener('install', (e) => {
+            self.skipWaiting();
+          });
+          self.addEventListener('activate', (e) => {
+            e.waitUntil(self.clients.claim());
+          });
+          self.addEventListener('fetch', (e) => {
+            e.respondWith(
+              caches.match(e.request).then((res) => {
+                return res || fetch(e.request).catch(() => caches.match(e.request));
+              })
+            );
+          });
+        `;
+        const swBlob = new Blob([swScript], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(swBlob);
+
+        navigator.serviceWorker.register(swUrl)
+          .catch(err => {
+            console.warn('Service worker setup note:', err);
+          });
+      }
+    })();
+
+    // --- MAIN APP STATE & PERSISTENCE ---
+    const STORAGE_KEY = 'timeelapsed_activities_data_v2';
+    const CATEGORIES_KEY = 'timeelapsed_categories_v2';
+    const THEME_KEY = 'timeelapsed_theme_pref';
+
+    let activities = [];
+    let categories = []; 
+    let currentView = 'home';
+    let dictSubTab = 'items';
+    let selectedHomeCategory = 'ALL'; 
+    let expandedItemId = null; 
+    let calendarDateMap = {}; 
+    let reportCalendarState = { year: new Date().getFullYear(), month: new Date().getMonth() };
+    let focusedHeatmapActivityId = null; 
+    let reportPeriod = 'day'; 
+    let reportRankMode = 'frequency'; 
+    let isHistoryLogExpanded = false;
+    let pendingConfirmAction = null;
+    let isNavMenuOpen = false;
+    let activeCatModalActivityId = null;
+
+    const DEFAULT_CATEGORIES = ['保健食品', '大掃除', '身體健康', '居家生活'];
+    const DEFAULT_DATA = [];
+
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function switchView(viewName) {
+      currentView = viewName;
+      const vHome = document.getElementById('viewHome');
+      const vDict = document.getElementById('viewDictionary');
+      const vReport = document.getElementById('viewReport');
+      const titleEl = document.getElementById('viewTitle');
+
+      vHome.classList.add('hidden');
+      vDict.classList.add('hidden');
+      vReport.classList.add('hidden');
+
+      const menuHome = document.getElementById('menuItemHome');
+      const menuDict = document.getElementById('menuItemDict');
+      const menuReport = document.getElementById('menuItemReport');
+
+      const activeMenuClass = "w-full flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl transition bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400";
+      const normalMenuClass = "w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl transition text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800";
+
+      if (menuHome) menuHome.className = normalMenuClass;
+      if (menuDict) menuDict.className = normalMenuClass;
+      if (menuReport) menuReport.className = normalMenuClass;
+
+      if (viewName === 'home') {
+        vHome.classList.remove('hidden');
+        if (titleEl) titleEl.innerText = '歷時';
+        if (menuHome) menuHome.className = activeMenuClass;
+        renderHomeCategoryTabs();
+        renderHomeView(document.getElementById('homeSearchInput').value || '');
+      } else if (viewName === 'dictionary') {
+        vDict.classList.remove('hidden');
+        if (titleEl) titleEl.innerText = '辭典';
+        if (menuDict) menuDict.className = activeMenuClass;
+        renderDictionaryView(document.getElementById('dictSearchInput').value || '');
+      } else if (viewName === 'report') {
+        vReport.classList.remove('hidden');
+        if (titleEl) titleEl.innerText = '報告';
+        if (menuReport) menuReport.className = activeMenuClass;
+        renderReportView();
+      }
+    }
+
+    function loadData() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const rawCat = localStorage.getItem(CATEGORIES_KEY);
+        if (raw !== null) {
+          const parsed = JSON.parse(raw);
+          activities = parsed.map(item => {
+            if (!item.categories) item.categories = item.category ? [item.category] : [];
+            delete item.category;
+            if (typeof item.isArchived !== 'boolean') item.isArchived = false;
+            if (item.history) {
+              item.history = item.history.map(h => ({ ...h, note: h.note || '' }));
+            }
+            return item;
+          });
+        } else {
+          activities = [];
+          saveData();
+        }
+
+        if (rawCat !== null) {
+          categories = JSON.parse(rawCat);
+        } else {
+          categories = DEFAULT_CATEGORIES;
+          saveCategories();
+        }
+      } catch (e) {
+        console.error("Failed to load local data", e);
+        activities = [];
+        categories = [];
+      }
+    }
+
+    function saveData() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
+      } catch (e) {
+        showToast("地端儲存容量已滿或失敗");
+      }
+    }
+
+    function saveCategories() {
+      try {
+        localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+      } catch (e) {
+        showToast("分類儲存失敗");
+      }
+    }
+
+    function showToast(message, icon = 'ph-check-circle') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      toast.querySelector('i').className = `ph ${icon} text-sm`;
+      toastMsg.innerText = message;
+      
+      toast.classList.remove('opacity-0', 'translate-y-3');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', 'translate-y-3');
+      }, 2000);
+    }
+
+    function triggerConfirm(title, message, onConfirmed) {
+      document.getElementById('confirmDialogTitle').innerText = title;
+      document.getElementById('confirmDialogMsg').innerText = message;
+      pendingConfirmAction = onConfirmed;
+      document.getElementById('confirmDialog').classList.remove('hidden');
+    }
+
+    function closeConfirmDialog() {
+      document.getElementById('confirmDialog').classList.add('hidden');
+      pendingConfirmAction = null;
+    }
+
+    function getElapsedTimeBreakdown(fromTimestamp, toTimestamp = Date.now()) {
+      if (!fromTimestamp) return { text: '尚未記錄' };
+      const diffMs = Math.max(0, toTimestamp - fromTimestamp);
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+      const diffHour = Math.floor(diffMin / 60);
+      const diffDay = Math.floor(diffHour / 24);
+
+      if (diffSec < 60) return { text: '剛剛' };
+      if (diffMin < 60) return { text: `${diffMin} 分鐘前` };
+      if (diffHour < 24) return { text: `${diffHour} 小時前` };
+      if (diffDay < 30) return { text: `${diffDay} 天前` };
+      
+      const months = Math.floor(diffDay / 30);
+      return { text: `${months} 個月前` };
+    }
+
+    function formatPreciseDate(timestamp) {
+      if (!timestamp) return '-';
+      const d = new Date(timestamp);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const hour = String(d.getHours()).padStart(2, '0');
+      const min = String(d.getMinutes()).padStart(2, '0');
+      return `${year}/${month}/${day} ${hour}:${min}`;
+    }
+
+    function formatTimeOnly(timestamp) {
+      if (!timestamp) return '-';
+      const d = new Date(timestamp);
+      const hour = String(d.getHours()).padStart(2, '0');
+      const min = String(d.getMinutes()).padStart(2, '0');
+      return `${hour}:${min}`;
+    }
+
+    function calculateTotalSpanDays(activity) {
+      if (!activity.history || activity.history.length === 0) return 0;
+      const timestamps = activity.history.map(h => h.timestamp);
+      const earliest = Math.min(...timestamps);
+      const diffDays = Math.max(0, Math.floor((Date.now() - earliest) / (1000 * 60 * 60 * 24)));
+      return diffDays;
+    }
+
+    function getLatestTimestamp(activity) {
+      if (!activity.history || activity.history.length === 0) return 0;
+      return activity.history[0].timestamp;
+    }
+
+    function calculateAverageCycleDays(activity) {
+      if (!activity.history || activity.history.length < 2) return null;
+      const sorted = [...activity.history].sort((a,b) => b.timestamp - a.timestamp);
+      let totalDiff = 0;
+      for (let i = 0; i < sorted.length - 1; i++) {
+        totalDiff += (sorted[i].timestamp - sorted[i+1].timestamp);
+      }
+      const avgMs = totalDiff / (sorted.length - 1);
+      return (avgMs / (1000 * 60 * 60 * 24)).toFixed(1);
+    }
+
+    function calculateRegularityScore(activity) {
+      if (!activity.history || activity.history.length < 2) return null;
+      const sorted = [...activity.history].sort((a,b) => b.timestamp - a.timestamp);
+      const intervals = [];
+      for (let i = 0; i < sorted.length - 1; i++) {
+        intervals.push((sorted[i].timestamp - sorted[i+1].timestamp) / (1000 * 60 * 60 * 24));
+      }
+      const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      if (intervals.length === 1) {
+        return { avg: avg.toFixed(1), score: 85, stdDev: 0 };
+      }
+      const variance = intervals.reduce((acc, val) => acc + Math.pow(val - avg, 2), 0) / intervals.length;
+      const stdDev = Math.sqrt(variance);
+      const cv = avg > 0 ? (stdDev / avg) : 0;
+      const score = Math.max(10, Math.min(100, Math.round(100 - (cv * 60))));
+      return {
+        avg: avg.toFixed(1),
+        score: score,
+        stdDev: stdDev.toFixed(1)
+      };
+    }
+
+    function isOverdue(activity) {
+      const latest = getLatestTimestamp(activity);
+      if (!latest) return false;
+      const expectedDays = activity.targetIntervalDays || parseFloat(calculateAverageCycleDays(activity));
+      if (!expectedDays || isNaN(expectedDays)) return false;
+      const elapsedDays = (Date.now() - latest) / (1000 * 60 * 60 * 24);
+      return elapsedDays > expectedDays;
+    }
+
+    function getActivityCalendarDate(activityId) {
+      if (!calendarDateMap[activityId]) {
+        const now = new Date();
+        calendarDateMap[activityId] = {
+          year: now.getFullYear(),
+          month: now.getMonth() 
+        };
+      }
+      return calendarDateMap[activityId];
+    }
+
+    function shiftActivityCalendarMonth(activityId, monthDelta) {
+      const state = getActivityCalendarDate(activityId);
+      let newMonth = state.month + monthDelta;
+      let newYear = state.year;
+      if (newMonth < 0) {
+        newMonth = 11;
+        newYear -= 1;
+      } else if (newMonth > 11) {
+        newMonth = 0;
+        newYear += 1;
+      }
+      calendarDateMap[activityId] = { year: newYear, month: newMonth };
+      renderHomeView(document.getElementById('homeSearchInput').value);
+    }
+
+    function shiftActivityCalendarYear(activityId, yearDelta) {
+      const state = getActivityCalendarDate(activityId);
+      calendarDateMap[activityId] = { year: state.year + yearDelta, month: state.month };
+      renderHomeView(document.getElementById('homeSearchInput').value);
+    }
+
+    function resetActivityCalendarToCurrent(activityId) {
+      const now = new Date();
+      calendarDateMap[activityId] = { year: now.getFullYear(), month: now.getMonth() };
+      renderHomeView(document.getElementById('homeSearchInput').value);
+    }
+
+    function openDateActionModal(activityId, year, month, day) {
+      const activity = activities.find(a => a.id === activityId);
+      if (!activity) return;
+
+      const dateStr = `${year}/${String(month + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+      const matchingRecords = (activity.history || []).filter(rec => {
+        const d = new Date(rec.timestamp);
+        return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+      });
+
+      const modal = document.getElementById('dateActionModal');
+      const titleEl = document.getElementById('dateActionTitle');
+      const subEl = document.getElementById('dateActionSub');
+      const listEl = document.getElementById('dateRecordsList');
+
+      titleEl.innerText = activity.name;
+      subEl.innerText = `${dateStr} (${matchingRecords.length} 次紀錄)`;
+
+      listEl.innerHTML = '';
+
+      if (matchingRecords.length === 0) {
+        const now = new Date();
+        const defaultTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        
+        const emptyBlock = document.createElement('div');
+        emptyBlock.className = "p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200/80 dark:border-neutral-700/80 space-y-2.5";
+        emptyBlock.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-neutral-400 font-mono">時間:</span>
+            <input 
+              type="time" 
+              id="modal-backlog-time" 
+              value="${defaultTime}" 
+              class="text-xs bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-2 py-1 rounded-lg border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 font-mono"
+            />
+          </div>
+          <div class="flex items-center gap-1.5">
+            <input 
+              type="text" 
+              id="modal-backlog-note" 
+              placeholder="新增備註 (選填)..." 
+              class="flex-1 min-w-0 text-xs bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-2.5 py-1.5 rounded-xl border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500"
+            />
+            <button 
+              onclick="submitModalDayBacklog('${activity.id}', ${year}, ${month}, ${day})"
+              class="px-3.5 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-bold rounded-xl transition shadow-xs whitespace-nowrap flex-shrink-0"
+            >
+              補登
+            </button>
+          </div>
+        `;
+        listEl.appendChild(emptyBlock);
+      } else {
+        matchingRecords.forEach((rec) => {
+          const row = document.createElement('div');
+          row.className = "p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-700/80 space-y-2";
+          const hasNote = Boolean(rec.note && rec.note.trim());
+          
+          row.innerHTML = `
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-mono font-bold text-neutral-800 dark:text-neutral-200 flex items-center gap-1">
+                <i class="ph ph-clock text-xs text-neutral-400"></i>
+                ${formatTimeOnly(rec.timestamp)}
+              </span>
+              <button 
+                onclick="confirmDeleteRecordFromModal('${activity.id}', '${rec.id}')"
+                class="px-2 py-1 text-[11px] rounded-lg bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-900 hover:text-white dark:hover:bg-white dark:hover:text-neutral-950 text-neutral-700 dark:text-neutral-300 font-medium transition flex items-center gap-1"
+              >
+                <i class="ph ph-trash text-xs"></i>
+                刪除此筆
+              </button>
+            </div>
+            <div class="flex items-center gap-1.5" id="note-container-${rec.id}">
+              <input 
+                type="text" 
+                id="note-input-${rec.id}" 
+                placeholder="新增備註..." 
+                value="${escapeHTML(rec.note || '')}" 
+                ${hasNote ? 'readonly' : ''} 
+                class="flex-1 text-xs py-1.5 rounded-lg transition ${
+                  hasNote 
+                    ? 'bg-transparent text-neutral-600 dark:text-neutral-400 border-none outline-none shadow-none px-0 cursor-default select-none' 
+                    : 'px-2.5 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500'
+                }"
+              />
+              <button 
+                id="note-action-btn-${rec.id}"
+                onclick="toggleRecordNoteEdit('${activity.id}', '${rec.id}')"
+                class="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-semibold rounded-lg transition whitespace-nowrap"
+              >
+                ${hasNote ? '編輯' : '儲存'}
+              </button>
+            </div>
+          `;
+          listEl.appendChild(row);
+        });
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function submitModalDayBacklog(activityId, year, month, day) {
+      const timeInput = document.getElementById('modal-backlog-time');
+      const noteInput = document.getElementById('modal-backlog-note');
+      const timeVal = timeInput ? timeInput.value : '12:00';
+      const noteVal = noteInput ? noteInput.value.trim() : '';
+
+      const [hours, minutes] = timeVal.split(':').map(Number);
+      const targetDate = new Date(year, month, day, hours || 0, minutes || 0, 0, 0);
+
+      const activity = activities.find(a => a.id === activityId);
+      if (!activity) return;
+
+      const newRecord = {
+        id: 'h-' + Date.now(),
+        timestamp: targetDate.getTime(),
+        note: noteVal
+      };
+
+      activity.history.push(newRecord);
+      activity.history.sort((a,b) => b.timestamp - a.timestamp);
+      saveData();
+      closeDateActionModal();
+      refreshAll();
+      showToast(`已補登「${activity.name}」紀錄`);
+    }
+
+    function closeDateActionModal() {
+      document.getElementById('dateActionModal').classList.add('hidden');
+    }
+
+    function openItemCategoryModal(activityId) {
+      activeCatModalActivityId = activityId;
+      const activity = activities.find(a => a.id === activityId);
+      if (!activity) return;
+
+      const modal = document.getElementById('itemCategoryModal');
+      const titleEl = document.getElementById('catModalTitle');
+      titleEl.innerText = activity.name;
+
+      renderItemCategoryModalChips();
+      modal.classList.remove('hidden');
+    }
+
+    function closeItemCategoryModal() {
+      activeCatModalActivityId = null;
+      document.getElementById('itemCategoryModal').classList.add('hidden');
+    }
+
+    function renderItemCategoryModalChips() {
+      const container = document.getElementById('catModalChipsContainer');
+      if (!container || !activeCatModalActivityId) return;
+      container.innerHTML = '';
+
+      const activity = activities.find(a => a.id === activeCatModalActivityId);
+      if (!activity) return;
+
+      if (categories.length === 0) {
+        container.innerHTML = `<span class="text-xs text-neutral-400 py-1">尚無任何分類，請在上方建立</span>`;
+        return;
+      }
+
+      categories.forEach(cat => {
+        const isAssigned = (activity.categories || []).includes(cat);
+        const btn = document.createElement('button');
+        btn.className = `text-xs px-3 py-1.5 rounded-xl border transition-all duration-150 flex items-center gap-1.5 ${
+          isAssigned 
+            ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 border-neutral-900 dark:border-white font-bold shadow-sm' 
+            : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 font-normal'
+        }`;
+        btn.innerHTML = `
+          <span>${escapeHTML(cat)}</span>
+          ${isAssigned ? '<i class="ph ph-check text-[11px] font-bold"></i>' : ''}
+        `;
+        btn.onclick = () => {
+          toggleCategoryFromModal(activity.id, cat);
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function toggleCategoryFromModal(activityId, catName) {
+      const act = activities.find(a => a.id === activityId);
+      if (!act) return;
+      if (!Array.isArray(act.categories)) act.categories = [];
+      const idx = act.categories.indexOf(catName);
+      if (idx >= 0) {
+        act.categories.splice(idx, 1);
+      } else {
+        act.categories.push(catName);
+      }
+      saveData();
+      renderItemCategoryModalChips();
+      
+      const homeSearch = document.getElementById('homeSearchInput')?.value || '';
+      renderHomeCategoryTabs();
+      renderHomeView(homeSearch);
+    }
+
+    function addCategoryFromModal() {
+      const input = document.getElementById('catModalNewInput');
+      const val = input ? input.value.trim() : '';
+      if (!val) return;
+      if (!categories.includes(val)) {
+        categories.push(val);
+        saveCategories();
+      }
+      if (activeCatModalActivityId) {
+        const act = activities.find(a => a.id === activeCatModalActivityId);
+        if (act && !(act.categories || []).includes(val)) {
+          act.categories.push(val);
+          saveData();
+        }
+      }
+      if (input) input.value = '';
+      renderItemCategoryModalChips();
+      refreshAll();
+      showToast(`已建立分類「${val}」`);
+    }
+
+    function toggleRecordNoteEdit(activityId, recordId) {
+      const input = document.getElementById(`note-input-${recordId}`);
+      const btn = document.getElementById(`note-action-btn-${recordId}`);
+      if (!input || !btn) return;
+      const act = activities.find(a => a.id === activityId);
+      if (!act) return;
+      const rec = (act.history || []).find(r => r.id === recordId);
+      if (!rec) return;
+
+      const isReadOnly = input.hasAttribute('readonly');
+
+      if (isReadOnly) {
+        input.removeAttribute('readonly');
+        input.className = "flex-1 text-xs px-2.5 py-1.5 rounded-lg border bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 transition";
+        input.focus();
+        btn.innerText = '儲存';
+      } else {
+        rec.note = input.value.trim();
+        saveData();
+        input.setAttribute('readonly', 'true');
+        input.className = "flex-1 text-xs py-1.5 rounded-lg bg-transparent text-neutral-600 dark:text-neutral-400 border-none outline-none shadow-none px-0 cursor-default select-none transition";
+        btn.innerText = '編輯';
+        showToast("備註已儲存");
+        refreshAll();
+      }
+    }
+
+    function confirmDeleteRecordFromModal(activityId, recordId) {
+      triggerConfirm('刪除單筆紀錄', '確定要刪除這筆歷史紀錄嗎？', () => {
+        const act = activities.find(a => a.id === activityId);
+        if (!act) return;
+        act.history = act.history.filter(r => r.id !== recordId);
+        saveData();
+        closeDateActionModal();
+        refreshAll();
+        showToast("已刪除紀錄");
+      });
+    }
+
+    function generateMiniCalendarHTML(activity) {
+      const { year, month } = getActivityCalendarDate(activity.id);
+      
+      const firstDayOfMonth = new Date(year, month, 1);
+      const lastDayOfMonth = new Date(year, month + 1, 0);
+      const daysInMonth = lastDayOfMonth.getDate();
+      const startDayOfWeek = firstDayOfMonth.getDay();
+
+      const activeDaysMap = {};
+      const notesMap = {};
+      (activity.history || []).forEach(rec => {
+        const d = new Date(rec.timestamp);
+        if (d.getFullYear() === year && d.getMonth() === month) {
+          const dateNum = d.getDate();
+          activeDaysMap[dateNum] = (activeDaysMap[dateNum] || 0) + 1;
+          if (rec.note) notesMap[dateNum] = true;
+        }
+      });
+
+      const today = new Date();
+      const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+      const todayDate = today.getDate();
+
+      const weekHeaders = ['日', '一', '二', '三', '四', '五', '六'];
+      
+      let cellsHTML = '';
+      for (let i = 0; i < startDayOfWeek; i++) {
+        cellsHTML += `<div class="h-7"></div>`;
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const hasDone = activeDaysMap[day] > 0;
+        const hasNote = notesMap[day];
+        const isToday = isCurrentMonth && day === todayDate;
+        
+        let cellButton = '';
+        if (hasDone) {
+          cellButton = `
+            <button 
+              onclick="event.stopPropagation(); openDateActionModal('${activity.id}', ${year}, ${month}, ${day})"
+              class="relative w-6 h-6 rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold flex items-center justify-center text-xs hover:scale-110 transition active:scale-95 shadow-sm"
+              title="${year}/${month + 1}/${day} (已記錄 ${activeDaysMap[day]} 次，點擊修改/刪除/備註)"
+            >
+              ${day}
+              ${hasNote ? '<span class="absolute -bottom-0.5 w-1 h-1 rounded-full bg-neutral-400"></span>' : ''}
+            </button>
+          `;
+        } else if (isToday) {
+          cellButton = `
+            <button 
+              onclick="event.stopPropagation(); openDateActionModal('${activity.id}', ${year}, ${month}, ${day})"
+              class="w-6 h-6 rounded-full border border-neutral-400 dark:border-neutral-600 text-neutral-800 dark:text-neutral-200 font-bold flex items-center justify-center text-xs hover:scale-105 transition"
+              title="${year}/${month + 1}/${day} (今日，點擊補錄)"
+            >
+              ${day}
+            </button>
+          `;
+        } else {
+          cellButton = `
+            <button 
+              onclick="event.stopPropagation(); openDateActionModal('${activity.id}', ${year}, ${month}, ${day})"
+              class="w-6 h-6 flex items-center justify-center text-xs text-neutral-400 dark:text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 hover:bg-neutral-200/50 dark:hover:bg-neutral-800 rounded-full transition"
+              title="${year}/${month + 1}/${day} (點擊補錄此日)"
+            >
+              ${day}
+            </button>
+          `;
+        }
+
+        cellsHTML += `
+          <div class="h-7 flex items-center justify-center">
+            ${cellButton}
+          </div>
+        `;
+      }
+
+      const monthLabel = `${year} 年 ${month + 1} 月`;
+
+      return `
+        <div class="pt-1 space-y-3 cursor-default" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between text-sm">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5">
+                <i class="ph ph-calendar text-neutral-500"></i>
+                ${monthLabel}
+              </span>
+              <button 
+                onclick="event.stopPropagation(); resetActivityCalendarToCurrent('${activity.id}')"
+                class="text-xs px-2 py-0.5 rounded bg-neutral-200/70 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 transition"
+              >
+                今月
+              </button>
+            </div>
+
+            <div class="flex items-center gap-1 text-neutral-500">
+              <button onclick="event.stopPropagation(); shiftActivityCalendarYear('${activity.id}', -1)" class="px-1.5 py-0.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800 text-xs font-mono">«年</button>
+              <button onclick="event.stopPropagation(); shiftActivityCalendarMonth('${activity.id}', -1)" class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800"><i class="ph ph-caret-left text-sm"></i></button>
+              <button onclick="event.stopPropagation(); shiftActivityCalendarMonth('${activity.id}', 1)" class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800"><i class="ph ph-caret-right text-sm"></i></button>
+              <button onclick="event.stopPropagation(); shiftActivityCalendarYear('${activity.id}', 1)" class="px-1.5 py-0.5 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800 text-xs font-mono">年»</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-7 gap-1 text-center text-xs text-neutral-400 font-medium">
+            ${weekHeaders.map(w => `<div>${w}</div>`).join('')}
+          </div>
+
+          <div class="grid grid-cols-7 gap-1 text-center select-none">
+            ${cellsHTML}
+          </div>
+          
+          <div class="flex items-center justify-between text-xs text-neutral-400 pt-0.5">
+            <span class="text-[11px]">點擊任一日可補錄或編輯備註</span>
+            <span>當月累計: <strong class="text-neutral-900 dark:text-neutral-100 font-bold">${Object.keys(activeDaysMap).length}</strong> 天</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleItemExpand(activityId) {
+      expandedItemId = (expandedItemId === activityId) ? null : activityId;
+      renderHomeView(document.getElementById('homeSearchInput').value);
+    }
+
+    function createItemFromQueryDirect(name) {
+      const clean = name.trim();
+      if (!clean) return;
+
+      const initialCategories = (selectedHomeCategory !== 'ALL' && selectedHomeCategory !== 'UNCATEGORIZED')
+        ? [selectedHomeCategory]
+        : [];
+
+      const newAct = {
+        id: 'act-' + Date.now(),
+        name: clean,
+        categories: initialCategories,
+        isArchived: false,
+        targetIntervalDays: null,
+        history: [
+          {
+            id: 'h-' + Date.now(),
+            timestamp: Date.now(),
+            note: ''
+          }
+        ]
+      };
+
+      activities.unshift(newAct);
+      saveData();
+      document.getElementById('homeSearchInput').value = '';
+      refreshAll();
+      showToast(`已建立「${clean}」`);
+    }
+
+    function renderHomeCategoryTabs() {
+      const container = document.getElementById('homeCategoryTabs');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const tabs = [
+        { id: 'ALL', label: '全部' },
+        ...categories.map(c => ({ id: c, label: c })),
+        { id: 'UNCATEGORIZED', label: '未分類' }
+      ];
+
+      tabs.forEach(tab => {
+        const isActive = selectedHomeCategory === tab.id;
+        const btn = document.createElement('button');
+        btn.className = `px-3 py-1.5 rounded-xl text-xs whitespace-nowrap transition ${
+          isActive 
+            ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold shadow-sm' 
+            : 'bg-neutral-100 dark:bg-neutral-900 text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+        }`;
+        btn.innerText = tab.label;
+        btn.onclick = () => {
+          selectedHomeCategory = tab.id;
+          renderHomeCategoryTabs();
+          renderHomeView(document.getElementById('homeSearchInput').value);
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function toggleArchiveActivity(activityId) {
+      const act = activities.find(a => a.id === activityId);
+      if (!act) return;
+      act.isArchived = !act.isArchived;
+      saveData();
+      refreshAll();
+      showToast(act.isArchived ? `已封存「${act.name}」` : `已取消封存「${act.name}」`);
+    }
+
+    function renderHomeView(filterQuery = '') {
+      const listEl = document.getElementById('homeList');
+      const emptyState = document.getElementById('homeEmptyState');
+      const clearSearchBtn = document.getElementById('clearSearchBtn');
+      const todayDoneCard = document.getElementById('todayDoneCard');
+      const todayDoneCountEl = document.getElementById('todayDoneCount');
+      const todayDoneLabel = document.getElementById('todayDoneLabel');
+      
+      if (!listEl) return;
+      listEl.innerHTML = '';
+
+      let unarchived = activities.filter(it => !it.isArchived);
+      let items = [...unarchived].sort((a, b) => getLatestTimestamp(b) - getLatestTimestamp(a));
+      
+      if (selectedHomeCategory === 'UNCATEGORIZED') {
+        items = items.filter(it => !it.categories || it.categories.length === 0);
+      } else if (selectedHomeCategory !== 'ALL') {
+        items = items.filter(it => (it.categories || []).includes(selectedHomeCategory));
+      }
+
+      const queryTrim = filterQuery.trim();
+      let hasExactMatch = false;
+
+      if (queryTrim) {
+        if (clearSearchBtn) clearSearchBtn.classList.remove('hidden');
+        const q = queryTrim.toLowerCase();
+        
+        const matchedCategories = new Set();
+        unarchived.forEach(it => {
+          (it.categories || []).forEach(cat => {
+            if (cat.toLowerCase().includes(q)) matchedCategories.add(cat);
+          });
+          if (it.name.toLowerCase().includes(q)) {
+            (it.categories || []).forEach(cat => matchedCategories.add(cat));
+          }
+        });
+
+        items = items.filter(it => {
+          const directMatch = it.name.toLowerCase().includes(q);
+          const relatedByCat = (it.categories || []).some(cat => matchedCategories.has(cat));
+          const noteMatch = (it.history || []).some(h => (h.note || '').toLowerCase().includes(q));
+          return directMatch || relatedByCat || noteMatch;
+        });
+
+        hasExactMatch = activities.some(it => it.name.toLowerCase() === q);
+      } else {
+        if (clearSearchBtn) clearSearchBtn.classList.add('hidden');
+      }
+
+      const totalItemsCountEl = document.getElementById('totalItemsCount');
+      if (totalItemsCountEl) totalItemsCountEl.innerText = unarchived.length;
+      
+      const startOfToday = new Date();
+      startOfToday.setHours(0,0,0,0);
+      const todayStartTime = startOfToday.getTime();
+      const todayDone = unarchived.filter(a => getLatestTimestamp(a) >= todayStartTime).length;
+      if (todayDoneCountEl) todayDoneCountEl.innerText = todayDone;
+
+      if (todayDoneCard) {
+        if (todayDone > 0) {
+          todayDoneCard.className = "p-2.5 rounded-xl border transition-all duration-200 bg-blue-50/80 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800/80 shadow-xs";
+          if (todayDoneCountEl) todayDoneCountEl.className = "text-lg font-black text-blue-600 dark:text-blue-400 leading-tight";
+          if (todayDoneLabel) todayDoneLabel.className = "text-[10px] text-blue-600/80 dark:text-blue-400/80 font-semibold";
+        } else {
+          todayDoneCard.className = "p-2.5 rounded-xl border transition-all duration-200 bg-neutral-50 dark:bg-neutral-900/60 border-neutral-200/60 dark:border-neutral-800/80";
+          if (todayDoneCountEl) todayDoneCountEl.className = "text-lg font-bold text-neutral-900 dark:text-neutral-100 leading-tight";
+          if (todayDoneLabel) todayDoneLabel.className = "text-[10px] text-neutral-400 font-medium";
+        }
+      }
+
+      if (queryTrim && !hasExactMatch) {
+        const createCard = document.createElement('div');
+        createCard.className = "py-3 px-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 flex items-center justify-between cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800/80 transition active:scale-98 mb-3";
+        createCard.onclick = () => createItemFromQueryDirect(queryTrim);
+        createCard.innerHTML = `
+          <div class="text-sm font-semibold text-neutral-900 dark:text-neutral-100 break-words pr-2">
+            新增「${escapeHTML(queryTrim)}」
+          </div>
+          <i class="ph ph-plus text-base text-neutral-500 flex-shrink-0"></i>
+        `;
+        listEl.appendChild(createCard);
+      }
+
+      if (items.length === 0 && !queryTrim) {
+        if (emptyState) emptyState.classList.remove('hidden');
+        return;
+      } else {
+        if (emptyState) emptyState.classList.add('hidden');
+      }
+
+      items.forEach((activity, idx) => {
+        const latestTime = getLatestTimestamp(activity);
+        const elapsed = getElapsedTimeBreakdown(latestTime);
+        const overdue = isOverdue(activity);
+        const isDoneToday = latestTime >= todayStartTime;
+        const isExpanded = expandedItemId === activity.id;
+
+        const latestRecord = activity.history && activity.history.length > 0 ? activity.history[0] : null;
+        const latestNote = latestRecord && latestRecord.note ? latestRecord.note.trim() : '';
+
+        const timelineNode = document.createElement('div');
+        timelineNode.className = "relative pl-6 select-none";
+
+        const isLast = idx === items.length - 1;
+        const lineHTML = isLast 
+          ? '' 
+          : `<div class="absolute left-2.5 top-5 bottom-0 w-px bg-neutral-200 dark:bg-neutral-800"></div>`;
+
+        let dotHTML = '';
+        if (isDoneToday) {
+          dotHTML = `<div class="absolute left-1.5 top-3.5 w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400 ring-4 ring-blue-100 dark:ring-blue-950 transition-all"></div>`;
+        } else if (overdue) {
+          dotHTML = `<div class="absolute left-1.5 top-3.5 w-2.5 h-2.5 rounded-full bg-neutral-950 dark:bg-white ring-4 ring-neutral-200 dark:ring-neutral-800 transition-all"></div>`;
+        } else {
+          dotHTML = `<div class="absolute left-1.5 top-3.5 w-2.5 h-2.5 rounded-full bg-neutral-400 dark:bg-neutral-600 transition-all"></div>`;
+        }
+
+        let calendarSection = '';
+        if (isExpanded) {
+          calendarSection = `
+            <div class="mt-2.5 pt-2">
+              ${generateMiniCalendarHTML(activity)}
+            </div>
+          `;
+        }
+
+        const categoryPills = (activity.categories && activity.categories.length > 0)
+          ? activity.categories.map(c => `
+              <span class="text-[11px] px-2 py-0.5 rounded-md bg-neutral-200/70 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-medium break-words">
+                ${escapeHTML(c)}
+              </span>
+            `).join('')
+          : '';
+
+        const overduePill = overdue
+          ? `<span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-neutral-950 text-white dark:bg-white dark:text-neutral-950 font-bold whitespace-nowrap">逾期</span>`
+          : '';
+
+        const timeBadgeStyle = isDoneToday
+          ? 'bg-blue-600 text-white dark:bg-blue-500 dark:text-white shadow-xs'
+          : 'bg-neutral-200/70 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200';
+
+        const cardBorderHighlight = isDoneToday
+          ? 'border-blue-200/70 dark:border-blue-900/50'
+          : 'border-neutral-200/80 dark:border-neutral-850';
+
+        const addCategoryBtnHTML = `
+          <button 
+            onclick="event.stopPropagation(); openItemCategoryModal('${activity.id}')"
+            class="w-5 h-5 rounded-full bg-neutral-200/80 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center transition active:scale-90"
+            title="管理分類"
+          >
+            <i class="ph ph-plus text-[11px] font-bold"></i>
+          </button>
+        `;
+
+        timelineNode.innerHTML = `
+          ${lineHTML}
+          ${dotHTML}
+          
+          <div class="cursor-pointer transition rounded-2xl p-3 bg-neutral-50/80 dark:bg-neutral-900/50 border ${cardBorderHighlight} hover:border-neutral-300 dark:hover:border-neutral-700 shadow-sm" onclick="toggleItemExpand('${activity.id}')">
+            
+            <div class="flex items-center justify-between gap-3">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-bold text-sm tracking-tight text-neutral-900 dark:text-neutral-100 break-words">${escapeHTML(activity.name)}</span>
+                  ${categoryPills}
+                  ${addCategoryBtnHTML}
+                  ${overduePill}
+                </div>
+                
+                <div class="text-xs text-neutral-400 mt-1 font-mono">
+                  <span>${formatPreciseDate(latestTime)}</span>
+                </div>
+
+                ${latestNote ? `
+                  <div class="mt-1 text-xs text-neutral-400 dark:text-neutral-500 font-sans break-words whitespace-normal leading-normal">
+                    ${escapeHTML(latestNote)}
+                  </div>
+                ` : ''}
+              </div>
+
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <button 
+                  type="button"
+                  title="點擊切換顯示累積次數與歷時"
+                  onclick="event.stopPropagation(); toggleBadgeInfoDisplay('${activity.id}')"
+                  class="text-xs font-mono font-bold px-2.5 py-1 rounded-lg transition active:scale-95 ${timeBadgeStyle}"
+                >
+                  <span id="badge-text-${activity.id}">${elapsed.text}</span>
+                </button>
+
+                <button 
+                  title="以當下時間再次記錄"
+                  onclick="event.stopPropagation(); quickReLog('${activity.id}')"
+                  class="w-8 h-8 rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-900 hover:text-white dark:hover:bg-white dark:hover:text-neutral-950 transition flex items-center justify-center text-neutral-700 dark:text-neutral-300 active:scale-90 shadow-sm"
+                >
+                  <i class="ph ph-arrow-counter-clockwise text-sm font-bold"></i>
+                </button>
+              </div>
+            </div>
+
+            ${calendarSection}
+
+          </div>
+        `;
+        listEl.appendChild(timelineNode);
+      });
+    }
+
+    function toggleBadgeInfoDisplay(activityId) {
+      const badgeTextEl = document.getElementById(`badge-text-${activityId}`);
+      const activity = activities.find(a => a.id === activityId);
+      if (!badgeTextEl || !activity) return;
+
+      const badgeBtn = badgeTextEl.closest('button');
+      const latestTime = getLatestTimestamp(activity);
+      const elapsed = getElapsedTimeBreakdown(latestTime);
+      const totalSpanDays = calculateTotalSpanDays(activity);
+      const statsText = `${activity.history.length}次 • 歷時${totalSpanDays}天`;
+
+      const startOfToday = new Date();
+      startOfToday.setHours(0,0,0,0);
+      const isDoneToday = latestTime >= startOfToday.getTime();
+
+      const todayBlueStyle = 'bg-blue-600 text-white dark:bg-blue-500 dark:text-white shadow-xs';
+      const normalGrayStyle = 'bg-neutral-200/70 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200';
+      const statsBlackStyle = 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 shadow-xs';
+
+      if (badgeTextEl.innerText === elapsed.text) {
+        badgeTextEl.innerText = statsText;
+        if (badgeBtn) {
+          badgeBtn.className = `text-xs font-mono font-bold px-2.5 py-1 rounded-lg transition active:scale-95 ${statsBlackStyle}`;
+        }
+      } else {
+        badgeTextEl.innerText = elapsed.text;
+        if (badgeBtn) {
+          badgeBtn.className = `text-xs font-mono font-bold px-2.5 py-1 rounded-lg transition active:scale-95 ${isDoneToday ? todayBlueStyle : normalGrayStyle}`;
+        }
+      }
+    }
+
+    function addNewCategory() {
+      const input = document.getElementById('newCategoryInput');
+      const val = input.value.trim();
+      if (!val) return;
+      if (categories.includes(val)) {
+        showToast("該分類已存在");
+        return;
+      }
+      categories.push(val);
+      saveCategories();
+      input.value = '';
+      refreshAll();
+      showToast(`已建立分類「${val}」`);
+    }
+
+    function switchDictSubTab(subTab) {
+      dictSubTab = subTab;
+      const tabItems = document.getElementById('dictSubTabItems');
+      const tabCategories = document.getElementById('dictSubTabCategories');
+      const tabArchived = document.getElementById('dictSubTabArchived');
+
+      const panelItems = document.getElementById('dictItemsPanel');
+      const panelCategories = document.getElementById('dictCategoriesPanel');
+      const panelArchived = document.getElementById('dictArchivedPanel');
+      const searchContainer = document.getElementById('dictSearchBarContainer');
+
+      const activeTabClass = "flex-1 py-1.5 rounded-lg text-center transition bg-white dark:bg-white text-neutral-950 dark:text-neutral-950 shadow-sm font-bold";
+      const inactiveTabClass = "flex-1 py-1.5 rounded-lg text-center transition text-neutral-500 dark:text-neutral-400 font-semibold";
+
+      if (tabItems) tabItems.className = subTab === 'items' ? activeTabClass : inactiveTabClass;
+      if (tabCategories) tabCategories.className = subTab === 'categories' ? activeTabClass : inactiveTabClass;
+      if (tabArchived) tabArchived.className = subTab === 'archived' ? activeTabClass : inactiveTabClass;
+
+      if (panelItems) panelItems.classList.toggle('hidden', subTab !== 'items');
+      if (panelCategories) panelCategories.classList.toggle('hidden', subTab !== 'categories');
+      if (panelArchived) panelArchived.classList.toggle('hidden', subTab !== 'archived');
+      
+      if (searchContainer) {
+        searchContainer.classList.toggle('hidden', subTab === 'categories');
+      }
+
+      const searchVal = document.getElementById('dictSearchInput')?.value || '';
+      renderDictionaryView(searchVal);
+    }
+
+    function renderDictionaryView(filterQuery = '') {
+      const q = filterQuery.trim().toLowerCase();
+
+      // 1. Panel: Items (Active)
+      const activeList = document.getElementById('dictActiveList');
+      const activeCountBadge = document.getElementById('dictActiveCountBadge');
+      if (activeList) {
+        activeList.innerHTML = '';
+        let activeItems = activities.filter(a => !a.isArchived);
+        if (q) {
+          activeItems = activeItems.filter(a => 
+            a.name.toLowerCase().includes(q) ||
+            (a.categories || []).some(c => c.toLowerCase().includes(q)) ||
+            (a.history || []).some(h => (h.note || '').toLowerCase().includes(q))
+          );
+        }
+
+        if (activeCountBadge) activeCountBadge.innerText = `${activeItems.length} 項`;
+
+        if (activeItems.length === 0 && dictSubTab === 'items') {
+          activeList.innerHTML = `<div class="py-8 text-center text-xs text-neutral-400">沒有符合的事項</div>`;
+        } else {
+          activeItems.forEach(item => {
+            const row = document.createElement('div');
+            row.className = "p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between gap-2";
+            
+            const catPills = (item.categories && item.categories.length > 0)
+              ? item.categories.map(c => `
+                  <span class="text-[10px] px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
+                    ${escapeHTML(c)}
+                  </span>
+                `).join('')
+              : '<span class="text-[10px] text-neutral-400">無分類</span>';
+
+            const latestTime = getLatestTimestamp(item);
+            const totalSpan = calculateTotalSpanDays(item);
+
+            row.innerHTML = `
+              <div class="min-w-0 flex-1 space-y-1">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="font-bold text-xs text-neutral-900 dark:text-neutral-100">${escapeHTML(item.name)}</span>
+                  ${catPills}
+                </div>
+                <div class="text-[11px] font-mono text-neutral-400">
+                  <span>共記錄 ${item.history ? item.history.length : 0} 次</span>
+                  <span> • 歷時 ${totalSpan} 天</span>
+                  <span> • 最後記錄: ${latestTime ? formatTimeOnly(latestTime) : '無'}</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-1">
+                <button 
+                  onclick="openItemCategoryModal('${item.id}')"
+                  class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
+                  title="管理分類"
+                >
+                  <i class="ph ph-tag text-sm"></i>
+                </button>
+                <button 
+                  onclick="toggleArchiveActivity('${item.id}')"
+                  class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
+                  title="封存此項目"
+                >
+                  <i class="ph ph-archive-box text-sm"></i>
+                </button>
+                <button 
+                  onclick="requestDeleteActivity('${item.id}')"
+                  class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 hover:text-red-500 text-xs transition"
+                  title="永久刪除"
+                >
+                  <i class="ph ph-trash text-sm"></i>
+                </button>
+              </div>
+            `;
+            activeList.appendChild(row);
+          });
+        }
+      }
+
+      // 2. Panel: Categories
+      const catCardsList = document.getElementById('dictCategoryCardsList');
+      const catCountBadge = document.getElementById('dictCategoriesCountBadge');
+      if (catCardsList) {
+        catCardsList.innerHTML = '';
+        if (catCountBadge) catCountBadge.innerText = `${categories.length} 類`;
+
+        if (categories.length === 0 && dictSubTab === 'categories') {
+          catCardsList.innerHTML = `<div class="py-8 text-center text-xs text-neutral-400">尚未建立任何分類</div>`;
+        } else {
+          categories.forEach(cat => {
+            const card = document.createElement('div');
+            card.className = "p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 space-y-2";
+            
+            const linkedActivities = activities.filter(a => !a.isArchived && (a.categories || []).includes(cat));
+
+            card.innerHTML = `
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-bold text-xs text-neutral-900 dark:text-neutral-100">${escapeHTML(cat)}</span>
+                  <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
+                    ${linkedActivities.length} 項
+                  </span>
+                </div>
+                <button 
+                  onclick="requestDeleteCategory('${escapeHTML(cat)}')"
+                  class="text-[11px] text-neutral-400 hover:text-red-500 transition px-2 py-1 rounded hover:bg-neutral-200/50 dark:hover:bg-neutral-800 flex items-center gap-1"
+                >
+                  <i class="ph ph-trash text-xs"></i>
+                  刪除
+                </button>
+              </div>
+              <div class="flex items-center gap-1 flex-wrap">
+                ${linkedActivities.length > 0 
+                  ? linkedActivities.map(a => `
+                      <span class="text-[11px] px-2 py-0.5 rounded-md bg-white dark:bg-neutral-800 border border-neutral-200/70 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300">
+                        ${escapeHTML(a.name)}
+                      </span>
+                    `).join('')
+                  : '<span class="text-[11px] text-neutral-400">此分類暫無事項</span>'
+                }
+              </div>
+            `;
+            catCardsList.appendChild(card);
+          });
+        }
+      }
+
+      // 3. Panel: Archived Items
+      const archivedList = document.getElementById('dictArchivedList');
+      const archivedCountBadge = document.getElementById('dictArchivedCountBadge');
+      if (archivedList) {
+        archivedList.innerHTML = '';
+        let archivedItems = activities.filter(a => a.isArchived);
+        if (q) {
+          archivedItems = archivedItems.filter(a => 
+            a.name.toLowerCase().includes(q) ||
+            (a.categories || []).some(c => c.toLowerCase().includes(q))
+          );
+        }
+
+        if (archivedCountBadge) archivedCountBadge.innerText = `${archivedItems.length} 項`;
+
+        if (archivedItems.length === 0 && dictSubTab === 'archived') {
+          archivedList.innerHTML = `<div class="py-8 text-center text-xs text-neutral-400">無封存事項</div>`;
+        } else {
+          archivedItems.forEach(item => {
+            const row = document.createElement('div');
+            row.className = "p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between gap-2 opacity-80";
+            
+            row.innerHTML = `
+              <div class="min-w-0 flex-1">
+                <span class="font-bold text-xs text-neutral-800 dark:text-neutral-200 line-through">${escapeHTML(item.name)}</span>
+                <p class="text-[11px] text-neutral-400 mt-0.5">歷史紀錄：${item.history ? item.history.length : 0} 筆</p>
+              </div>
+              <div class="flex items-center gap-1">
+                <button 
+                  onclick="toggleArchiveActivity('${item.id}')"
+                  class="px-2.5 py-1 text-xs rounded-lg bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold transition flex items-center gap-1"
+                >
+                  <i class="ph ph-arrow-counter-clockwise"></i>
+                  解封
+                </button>
+                <button 
+                  onclick="requestDeleteActivity('${item.id}')"
+                  class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 hover:text-red-500 text-xs transition"
+                  title="徹底刪除"
+                >
+                  <i class="ph ph-trash text-sm"></i>
+                </button>
+              </div>
+            `;
+            archivedList.appendChild(row);
+          });
+        }
+      }
+    }
+
+    function requestDeleteCategory(catName) {
+      triggerConfirm('刪除分類', `確定要刪除「${catName}」分類嗎？相關事項不會被刪除，僅會移除此分類標籤。`, () => {
+        categories = categories.filter(c => c !== catName);
+        activities.forEach(a => {
+          if (Array.isArray(a.categories)) {
+            a.categories = a.categories.filter(c => c !== catName);
+          }
+        });
+        if (selectedHomeCategory === catName) selectedHomeCategory = 'ALL';
+        saveCategories();
+        saveData();
+        refreshAll();
+        showToast("分類已刪除");
+      });
+    }
+
+    function setReportPeriod(period) {
+      reportPeriod = period;
+      document.querySelectorAll('.report-period-tab').forEach(tab => {
+        if (tab.dataset.period === period) {
+          tab.className = "report-period-tab flex-1 py-1.5 rounded-lg text-center transition bg-white dark:bg-white text-neutral-950 dark:text-neutral-950 shadow-sm font-bold text-xs";
+        } else {
+          tab.className = "report-period-tab flex-1 py-1.5 rounded-lg text-center transition text-neutral-500 dark:text-neutral-400 font-semibold text-xs";
+        }
+      });
+      renderReportView();
+    }
+
+    function getPeriodStartTime(period) {
+      const now = new Date();
+      if (period === 'day') {
+        const d = new Date(now);
+        d.setHours(0, 0, 0, 0);
+        return { start: d.getTime(), label: '今日 (00:00 至今)' };
+      }
+      if (period === 'week') {
+        const d = new Date(now);
+        const day = d.getDay() || 7;
+        d.setDate(d.getDate() - day + 1);
+        d.setHours(0, 0, 0, 0);
+        return { start: d.getTime(), label: '本週 (週一至今)' };
+      }
+      if (period === 'month') {
+        const d = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        return { start: d.getTime(), label: `${now.getMonth() + 1} 月至今` };
+      }
+      if (period === 'year') {
+        const d = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+        return { start: d.getTime(), label: `${now.getFullYear()} 年至今` };
+      }
+      return { start: 0, label: '全部' };
+    }
+
+    function switchReportRankTab(mode) {
+      reportRankMode = mode;
+      const freqBtn = document.getElementById('rankTabFrequencyBtn');
+      const regBtn = document.getElementById('rankTabRegularityBtn');
+      const subLabel = document.getElementById('reportRankSubLabel');
+
+      if (!freqBtn || !regBtn) return;
+
+      const activeBtnClass = "px-2.5 py-1 rounded-md text-[11px] font-bold bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white shadow-xs transition";
+      const inactiveBtnClass = "px-2.5 py-1 rounded-md text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition";
+
+      if (mode === 'frequency') {
+        freqBtn.className = activeBtnClass;
+        regBtn.className = inactiveBtnClass;
+        if (subLabel) subLabel.innerText = "依區間次數排行";
+      } else {
+        regBtn.className = activeBtnClass;
+        freqBtn.className = inactiveBtnClass;
+        if (subLabel) subLabel.innerText = "依區間規律穩定度";
+      }
+      renderReportRankings();
+    }
+
+    function renderReportRankings() {
+      const container = document.getElementById('reportDynamicRankList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const { start: periodStartTime, label: periodLabel } = getPeriodStartTime(reportPeriod);
+
+      if (reportRankMode === 'frequency') {
+        const periodFreqList = [];
+        activities.forEach(act => {
+          const inPeriodLogs = (act.history || []).filter(h => h.timestamp >= periodStartTime);
+          if (inPeriodLogs.length > 0) {
+            periodFreqList.push({
+              name: act.name,
+              count: inPeriodLogs.length
+            });
+          }
+        });
+
+        periodFreqList.sort((a,b) => b.count - a.count);
+        const top5 = periodFreqList.slice(0, 5);
+
+        if (top5.length === 0) {
+          container.innerHTML = `<p class="text-xs text-neutral-400 py-3 text-center">${periodLabel} 尚無任何操作記錄</p>`;
+        } else {
+          top5.forEach((item, idx) => {
+            const card = document.createElement('div');
+            card.className = "flex items-center justify-between py-1.5 px-2 rounded-lg bg-white dark:bg-neutral-900/80 border border-neutral-100 dark:border-neutral-900 text-xs";
+            const rankBadge = idx === 0 
+              ? `<span class="w-4 h-4 rounded-full bg-blue-600 text-white font-bold text-[10px] flex items-center justify-center font-mono flex-shrink-0">1</span>`
+              : `<span class="w-4 h-4 rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold text-[10px] flex items-center justify-center font-mono flex-shrink-0">${idx + 1}</span>`;
+
+            card.innerHTML = `
+              <div class="flex items-center gap-2 min-w-0">
+                ${rankBadge}
+                <span class="font-semibold text-neutral-900 dark:text-neutral-100 truncate">${escapeHTML(item.name)}</span>
+              </div>
+              <span class="font-mono text-neutral-700 dark:text-neutral-300 font-bold text-xs flex-shrink-0">${item.count} 次</span>
+            `;
+            container.appendChild(card);
+          });
+        }
+      } else {
+        const periodRegList = [];
+        activities.forEach(act => {
+          const inPeriodLogs = (act.history || []).filter(h => h.timestamp >= periodStartTime);
+          if (inPeriodLogs.length >= 2) {
+            const reg = calculateRegularityScore({ history: inPeriodLogs });
+            if (reg) {
+              periodRegList.push({
+                name: act.name,
+                ...reg
+              });
+            }
+          }
+        });
+
+        periodRegList.sort((a, b) => b.score - a.score);
+        const top5 = periodRegList.slice(0, 5);
+
+        if (top5.length === 0) {
+          container.innerHTML = `<p class="text-xs text-neutral-400 py-3 text-center">${periodLabel} 紀錄需至少 2 次以計算規律</p>`;
+        } else {
+          top5.forEach((item, idx) => {
+            const card = document.createElement('div');
+            card.className = "flex items-center justify-between py-1.5 px-2 rounded-lg bg-white dark:bg-neutral-900/80 border border-neutral-100 dark:border-neutral-900 text-xs";
+            const rankBadge = idx === 0 
+              ? `<span class="w-4 h-4 rounded-full bg-blue-600 text-white font-bold text-[10px] flex items-center justify-center font-mono flex-shrink-0">1</span>`
+              : `<span class="w-4 h-4 rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold text-[10px] flex items-center justify-center font-mono flex-shrink-0">${idx + 1}</span>`;
+
+            card.innerHTML = `
+              <div class="flex items-center gap-2 min-w-0">
+                ${rankBadge}
+                <div class="truncate">
+                  <span class="font-semibold text-neutral-900 dark:text-neutral-100 truncate">${escapeHTML(item.name)}</span>
+                  <span class="text-[10px] font-mono text-neutral-400 ml-1">每 ${item.avg} 天</span>
+                </div>
+              </div>
+              <span class="font-mono text-xs font-bold text-blue-600 dark:text-blue-400 flex-shrink-0">規律度 ${item.score}%</span>
+            `;
+            container.appendChild(card);
+          });
+        }
+      }
+    }
+
+    function setHeatmapFocusActivity(activityId) {
+      focusedHeatmapActivityId = activityId;
+      renderReportCalendar();
+      updateHeatmapFocusLabels();
+      renderReportView();
+    }
+
+    function updateHeatmapFocusLabels() {
+      const labelEl = document.getElementById('calendarFocusItemLabel');
+      const resetBtn = document.getElementById('resetCalendarFocusBtn');
+      if (!labelEl || !resetBtn) return;
+
+      if (!focusedHeatmapActivityId) {
+        labelEl.innerText = "全域總覽";
+        resetBtn.classList.add('hidden');
+      } else {
+        const act = activities.find(a => a.id === focusedHeatmapActivityId);
+        labelEl.innerText = act ? act.name : "全域總覽";
+        resetBtn.classList.remove('hidden');
+      }
+    }
+
+    function shiftReportCalendar(monthDelta) {
+      reportCalendarState.month += monthDelta;
+      if (reportCalendarState.month < 0) {
+        reportCalendarState.month = 11;
+        reportCalendarState.year -= 1;
+      } else if (reportCalendarState.month > 11) {
+        reportCalendarState.month = 0;
+        reportCalendarState.year += 1;
+      }
+      renderReportCalendar();
+    }
+
+    function renderReportCalendar() {
+      const container = document.getElementById('reportCalendarContainer');
+      if (!container) return;
+      const { year, month } = reportCalendarState;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysCount = new Date(year, month + 1, 0).getDate();
+
+      const countMap = {};
+      const targetActivities = focusedHeatmapActivityId 
+        ? activities.filter(a => a.id === focusedHeatmapActivityId)
+        : activities;
+
+      targetActivities.forEach(a => {
+        (a.history || []).forEach(h => {
+          const d = new Date(h.timestamp);
+          if (d.getFullYear() === year && d.getMonth() === month) {
+            const dateNum = d.getDate();
+            countMap[dateNum] = (countMap[dateNum] || 0) + 1;
+          }
+        });
+      });
+
+      const today = new Date();
+      const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+
+      let cells = '';
+      for (let i = 0; i < firstDay; i++) {
+        cells += `<div class="h-6"></div>`;
+      }
+
+      for (let day = 1; day <= daysCount; day++) {
+        const count = countMap[day] || 0;
+        const isToday = isCurrentMonth && day === today.getDate();
+
+        let cellStyle = "text-neutral-400 dark:text-neutral-600";
+        if (count >= 3) {
+          cellStyle = "bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold shadow-sm";
+        } else if (count >= 1) {
+          cellStyle = "bg-neutral-300 dark:bg-neutral-700 text-neutral-900 dark:text-white font-medium";
+        } else if (isToday) {
+          cellStyle = "border border-blue-500 text-blue-600 dark:text-blue-400 font-bold";
+        }
+
+        cells += `
+          <div class="h-6 flex items-center justify-center">
+            <div class="w-5 h-5 rounded-md flex items-center justify-center text-[10px] ${cellStyle}" title="${year}/${month + 1}/${day}: ${count} 次記錄">
+              ${day}
+            </div>
+          </div>
+        `;
+      }
+
+      const weekHeaders = ['日', '一', '二', '三', '四', '五', '六'];
+
+      container.innerHTML = `
+        <div class="flex items-center justify-between text-xs pb-1">
+          <span class="font-bold text-neutral-900 dark:text-neutral-100">${year} 年 ${month + 1} 月</span>
+          <div class="flex items-center gap-1 text-neutral-500">
+            <button onclick="shiftReportCalendar(-1)" class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800"><i class="ph ph-caret-left"></i></button>
+            <button onclick="reportCalendarState.year = new Date().getFullYear(); reportCalendarState.month = new Date().getMonth(); renderReportCalendar();" class="text-[10px] px-1.5 py-0.5 rounded bg-neutral-200/60 dark:bg-neutral-800">今月</button>
+            <button onclick="shiftReportCalendar(1)" class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800"><i class="ph ph-caret-right"></i></button>
+          </div>
+        </div>
+        <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-neutral-400 font-medium">
+          ${weekHeaders.map(w => `<div>${w}</div>`).join('')}
+        </div>
+        <div class="grid grid-cols-7 gap-1 text-center select-none pt-1">
+          ${cells}
+        </div>
+      `;
+    }
+
+    function toggleHistoryLogAccordion() {
+      isHistoryLogExpanded = !isHistoryLogExpanded;
+      const container = document.getElementById('reportHistoryLogContainer');
+      const label = document.getElementById('historyLogToggleLabel');
+      const caret = document.getElementById('historyLogCaret');
+
+      if (isHistoryLogExpanded) {
+        if (container) container.classList.remove('hidden');
+        if (label) label.innerText = '收合明細';
+        if (caret) caret.className = 'ph ph-caret-up transition-transform duration-200';
+      } else {
+        if (container) container.classList.add('hidden');
+        if (label) label.innerText = '展開檢視';
+        if (caret) caret.className = 'ph ph-caret-down transition-transform duration-200';
+      }
+    }
+
+    function promptEditHistoryNote(activityId, recordId) {
+      const act = activities.find(a => a.id === activityId);
+      if (!act) return;
+      const rec = (act.history || []).find(r => r.id === recordId);
+      if (!rec) return;
+
+      const d = new Date(rec.timestamp);
+      openDateActionModal(act.id, d.getFullYear(), d.getMonth(), d.getDate());
+    }
+
+    function renderReportView() {
+      const overdueListEl = document.getElementById('overdueList');
+      const overdueBadge = document.getElementById('overdueCountBadge');
+      const periodRangeLabel = document.getElementById('periodRangeLabel');
+      const periodTotalCount = document.getElementById('periodTotalCount');
+      const periodItemsBarList = document.getElementById('periodItemsBarList');
+      const reportHistoryLogList = document.getElementById('reportHistoryLogList');
+      const historyLogTotalCount = document.getElementById('historyLogTotalCount');
+      const focusedHistoryTitle = document.getElementById('focusedHistoryTitle');
+      const focusedHistoryCountBadge = document.getElementById('focusedHistoryCountBadge');
+      const focusedHistoryList = document.getElementById('focusedHistoryList');
+
+      if (!overdueListEl || !periodItemsBarList || !reportHistoryLogList) return;
+
+      if (focusedHeatmapActivityId && !activities.some(a => a.id === focusedHeatmapActivityId)) {
+        focusedHeatmapActivityId = null;
+      }
+
+      overdueListEl.innerHTML = '';
+      periodItemsBarList.innerHTML = '';
+      reportHistoryLogList.innerHTML = '';
+      if (focusedHistoryList) focusedHistoryList.innerHTML = '';
+
+      const { start: periodStartTime, label: periodLabel } = getPeriodStartTime(reportPeriod);
+      if (periodRangeLabel) periodRangeLabel.innerText = `${periodLabel} 統計`;
+
+      const statsMap = [];
+      let totalCountInPeriod = 0;
+
+      activities.forEach(act => {
+        const inPeriodLogs = (act.history || []).filter(h => h.timestamp >= periodStartTime);
+        if (inPeriodLogs.length > 0) {
+          statsMap.push({
+            name: act.name,
+            count: inPeriodLogs.length,
+            id: act.id
+          });
+          totalCountInPeriod += inPeriodLogs.length;
+        }
+      });
+
+      statsMap.sort((a,b) => b.count - a.count);
+      if (periodTotalCount) periodTotalCount.innerText = `${totalCountInPeriod} 次操作`;
+
+      if (statsMap.length === 0) {
+        periodItemsBarList.innerHTML = `<p class="text-xs text-neutral-400 py-2 text-center">此時間區間內尚無任何操作記錄</p>`;
+      } else {
+        const maxVal = statsMap[0].count;
+        statsMap.forEach(item => {
+          const percent = Math.min(100, Math.round((item.count / maxVal) * 100));
+          const isFocused = focusedHeatmapActivityId === item.id;
+          const row = document.createElement('div');
+          row.className = `p-2 rounded-xl transition cursor-pointer ${
+            isFocused 
+              ? 'bg-blue-50/90 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800' 
+              : 'hover:bg-neutral-100 dark:hover:bg-neutral-800/60 border border-transparent'
+          } space-y-1`;
+          row.onclick = () => {
+            if (focusedHeatmapActivityId === item.id) {
+              setHeatmapFocusActivity(null);
+            } else {
+              setHeatmapFocusActivity(item.id);
+            }
+          };
+
+          row.innerHTML = `
+            <div class="flex items-center justify-between text-xs font-medium">
+              <span class="text-neutral-900 dark:text-neutral-100 font-semibold truncate flex items-center gap-1.5">
+                ${isFocused ? '<span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-600 text-white dark:bg-blue-500">已鎖定月曆</span>' : ''}
+                ${escapeHTML(item.name)}
+              </span>
+              <span class="font-mono text-neutral-500 text-xs">${item.count} 次</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-neutral-200 dark:bg-neutral-800 overflow-hidden">
+              <div class="h-full ${isFocused ? 'bg-blue-600 dark:bg-blue-400' : 'bg-neutral-900 dark:bg-white'} rounded-full transition-all duration-300" style="width: ${percent}%"></div>
+            </div>
+          `;
+          periodItemsBarList.appendChild(row);
+        });
+      }
+
+      renderReportCalendar();
+      updateHeatmapFocusLabels();
+      renderReportRankings();
+
+      if (focusedHistoryList && focusedHistoryTitle && focusedHistoryCountBadge) {
+        if (!focusedHeatmapActivityId) {
+          focusedHistoryTitle.innerText = '鎖定項目的歷史明細';
+          focusedHistoryCountBadge.innerText = '未鎖定';
+          focusedHistoryList.innerHTML = `
+            <div class="py-4 text-center text-xs text-neutral-400 space-y-1">
+              <p>點擊上方長條圖中任一事項以鎖定月曆</p>
+              <p class="text-[11px] text-neutral-400/80">鎖定後將在此列出該項目的專屬歷史紀錄與備註</p>
+            </div>
+          `;
+        } else {
+          const focusedAct = activities.find(a => a.id === focusedHeatmapActivityId);
+          if (focusedAct) {
+            focusedHistoryTitle.innerHTML = `<span>「${escapeHTML(focusedAct.name)}」歷史明細</span>`;
+            const actHistory = [...(focusedAct.history || [])].sort((a, b) => b.timestamp - a.timestamp);
+            focusedHistoryCountBadge.innerText = `${actHistory.length} 筆`;
+
+            if (actHistory.length === 0) {
+              focusedHistoryList.innerHTML = `<p class="text-xs text-neutral-400 py-3 text-center">該項目尚無歷史記錄</p>`;
+            } else {
+              actHistory.forEach(log => {
+                const row = document.createElement('div');
+                row.className = "py-2 px-3 rounded-xl bg-white dark:bg-neutral-900/80 border border-neutral-100 dark:border-neutral-900 space-y-1 transition hover:border-neutral-300 dark:hover:border-neutral-700";
+                row.innerHTML = `
+                  <div class="flex items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <span class="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 flex-shrink-0"></span>
+                      <span class="font-mono text-neutral-700 dark:text-neutral-300 font-semibold">${formatPreciseDate(log.timestamp)}</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-shrink-0 font-mono text-xs text-neutral-400">
+                      <button 
+                        onclick="promptEditHistoryNote('${focusedAct.id}', '${log.id}')" 
+                        class="p-1 rounded text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition"
+                        title="編輯此筆備註"
+                      >
+                        <i class="ph ph-pencil-simple text-sm"></i>
+                      </button>
+                      <button 
+                        onclick="requestDeleteSingleRecord('${focusedAct.id}', '${log.id}')" 
+                        class="p-1 rounded text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition"
+                        title="刪除此筆"
+                      >
+                        <i class="ph ph-trash text-sm"></i>
+                      </button>
+                    </div>
+                  </div>
+                  ${log.note ? `
+                    <div class="text-[11px] text-neutral-400 dark:text-neutral-500 font-sans break-words whitespace-normal leading-normal pl-3.5">
+                      ${escapeHTML(log.note)}
+                    </div>
+                  ` : ''}
+                `;
+                focusedHistoryList.appendChild(row);
+              });
+            }
+          }
+        }
+      }
+
+      let overdueCount = 0;
+      activities.forEach(activity => {
+        const latestTime = getLatestTimestamp(activity);
+        const avgCycle = calculateAverageCycleDays(activity);
+        const targetDays = activity.targetIntervalDays || (avgCycle ? parseFloat(avgCycle) : null);
+        const elapsedDays = latestTime ? ((Date.now() - latestTime) / (1000 * 60 * 60 * 24)) : 0;
+
+        if (targetDays && elapsedDays > targetDays) {
+          overdueCount++;
+          const overDiff = (elapsedDays - targetDays).toFixed(1);
+
+          const card = document.createElement('div');
+          card.className = "p-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 flex items-center justify-between gap-2";
+          card.innerHTML = `
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-sm text-neutral-900 dark:text-neutral-100">${escapeHTML(activity.name)}</span>
+                <span class="text-xs font-mono px-1.5 py-0.5 rounded bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold">逾期 ${overDiff} 天</span>
+              </div>
+              <p class="text-xs text-neutral-400 mt-1 font-mono">
+                預期 ${targetDays} 天一次 • 距上次已 ${elapsedDays.toFixed(1)} 天
+              </p>
+            </div>
+            <button 
+              onclick="quickReLog('${activity.id}')" 
+              class="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 rounded-lg text-xs font-semibold shadow transition whitespace-nowrap"
+            >
+              再次記錄
+            </button>
+          `;
+          overdueListEl.appendChild(card);
+        }
+      });
+
+      if (overdueBadge) overdueBadge.innerText = overdueCount;
+      if (overdueCount === 0) {
+        overdueListEl.innerHTML = `
+          <div class="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900/60 text-center text-xs text-neutral-400">
+            目前無任何逾期項目
+          </div>
+        `;
+      }
+
+      const allLogs = [];
+      activities.forEach(act => {
+        (act.history || []).forEach(h => {
+          allLogs.push({
+            activityId: act.id,
+            activityName: act.name,
+            recordId: h.id,
+            timestamp: h.timestamp,
+            note: h.note || ''
+          });
+        });
+      });
+
+      allLogs.sort((a,b) => b.timestamp - a.timestamp);
+      if (historyLogTotalCount) historyLogTotalCount.innerText = `${allLogs.length} 筆`;
+
+      if (allLogs.length === 0) {
+        reportHistoryLogList.innerHTML = `<p class="text-xs text-neutral-400 py-2 text-center">尚無任何歷史記錄</p>`;
+      } else {
+        allLogs.slice(0, 50).forEach(log => {
+          const row = document.createElement('div');
+          row.className = "py-2 px-3 rounded-xl bg-white dark:bg-neutral-900/80 border border-neutral-100 dark:border-neutral-900 space-y-1 transition hover:border-neutral-300 dark:hover:border-neutral-700";
+          row.innerHTML = `
+            <div class="flex items-center justify-between gap-2 text-xs">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="w-1.5 h-1.5 rounded-full bg-neutral-400 flex-shrink-0"></span>
+                <span class="font-bold text-neutral-800 dark:text-neutral-200">${escapeHTML(log.activityName)}</span>
+              </div>
+              <div class="flex items-center gap-1.5 flex-shrink-0 font-mono text-xs text-neutral-400">
+                <span>${formatPreciseDate(log.timestamp)}</span>
+                <button 
+                  onclick="promptEditHistoryNote('${log.activityId}', '${log.recordId}')" 
+                  class="p-1 rounded text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition"
+                  title="編輯此筆紀錄備註"
+                >
+                  <i class="ph ph-pencil-simple text-sm"></i>
+                </button>
+                <button 
+                  onclick="requestDeleteSingleRecord('${log.activityId}', '${log.recordId}')" 
+                  class="p-1 rounded text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition"
+                  title="刪除此筆"
+                >
+                  <i class="ph ph-trash text-sm"></i>
+                </button>
+              </div>
+            </div>
+            ${log.note ? `
+              <div class="text-[11px] text-neutral-400 dark:text-neutral-500 font-sans break-words whitespace-normal leading-normal pl-3.5">
+                ${escapeHTML(log.note)}
+              </div>
+            ` : ''}
+          `;
+          reportHistoryLogList.appendChild(row);
+        });
+
+        if (allLogs.length > 50) {
+          const moreTip = document.createElement('div');
+          moreTip.className = "text-center text-xs text-neutral-400 py-1.5";
+          moreTip.innerText = `僅顯示最近 50 筆 (共 ${allLogs.length} 筆)`;
+          reportHistoryLogList.appendChild(moreTip);
+        }
+      }
+    }
+
+    function quickReLog(activityId) {
+      const activity = activities.find(a => a.id === activityId);
+      if (!activity) return;
+
+      const newRecord = {
+        id: 'h-' + Date.now(),
+        timestamp: Date.now(),
+        note: ''
+      };
+
+      activity.history.unshift(newRecord);
+      saveData();
+      refreshAll();
+      showToast(`已更新「${activity.name}」打卡`);
+    }
+
+    function requestDeleteSingleRecord(activityId, recordId) {
+      const act = activities.find(a => a.id === activityId);
+      if (!act) return;
+      triggerConfirm('刪除單筆紀錄', `確定要刪除「${act.name}」的這筆歷史紀錄嗎？`, () => {
+        act.history = act.history.filter(r => r.id !== recordId);
+        saveData();
+        refreshAll();
+        showToast("已刪除紀錄");
+      });
+    }
+
+    function requestDeleteActivity(activityId) {
+      const act = activities.find(a => a.id === activityId);
+      if (!act) return;
+      triggerConfirm('刪除整個事項', `確定要將「${act.name}」及其所有歷史紀錄全部刪除嗎？`, () => {
+        activities = activities.filter(a => a.id !== activityId);
+        if (expandedItemId === activityId) expandedItemId = null;
+        if (focusedHeatmapActivityId === activityId) focusedHeatmapActivityId = null;
+        saveData();
+        refreshAll();
+        showToast(`已刪除「${act.name}」`);
+      });
+    }
+
+    function refreshAll() {
+      const homeSearch = document.getElementById('homeSearchInput')?.value || '';
+      const dictSearch = document.getElementById('dictSearchInput')?.value || '';
+      renderHomeCategoryTabs();
+      renderHomeView(homeSearch);
+      renderDictionaryView(dictSearch);
+      renderReportView();
+    }
+
+    function toggleNavMenu() {
+      isNavMenuOpen = !isNavMenuOpen;
+      const menu = document.getElementById('navDropdownMenu');
+      if (!menu) return;
+      if (isNavMenuOpen) {
+        menu.classList.remove('hidden');
+      } else {
+        menu.classList.add('hidden');
+      }
+    }
+
+    function closeNavMenu() {
+      isNavMenuOpen = false;
+      const menu = document.getElementById('navDropdownMenu');
+      if (menu) menu.classList.add('hidden');
+    }
+
+    function updateHeaderDateDisplay() {
+      const headerDateEl = document.getElementById('headerDate');
+      if (!headerDateEl) return;
+
+      const now = new Date();
+      const options = { month: 'short', day: 'numeric', weekday: 'short' };
+      headerDateEl.innerText = now.toLocaleDateString('zh-TW', options);
+    }
+
+    // --- INITIALIZATION ---
+    window.addEventListener('DOMContentLoaded', () => {
+      loadData();
+      updateHeaderDateDisplay();
+
+      const savedTheme = localStorage.getItem(THEME_KEY);
+      if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+
+      document.getElementById('themeToggleBtn')?.addEventListener('click', () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+        renderReportView();
+      });
+
+      const navMenuBtn = document.getElementById('navMenuBtn');
+      navMenuBtn?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleNavMenu();
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#navDropdownMenu') && !e.target.closest('#navMenuBtn')) {
+          closeNavMenu();
+        }
+      });
+
+      document.getElementById('addCategoryBtn')?.addEventListener('click', addNewCategory);
+      document.getElementById('newCategoryInput')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addNewCategory();
+      });
+
+      document.getElementById('closeDateActionBtn')?.addEventListener('click', closeDateActionModal);
+
+      document.querySelectorAll('.report-period-tab').forEach(tab => {
+        tab.addEventListener('click', () => setReportPeriod(tab.dataset.period));
+      });
+
+      document.getElementById('clearSearchBtn')?.addEventListener('click', () => {
+        const input = document.getElementById('homeSearchInput');
+        if (input) {
+          input.value = '';
+          renderHomeView('');
+          input.focus();
+        }
+      });
+
+      document.getElementById('homeSearchInput')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const val = e.target.value.trim();
+          if (val) {
+            const exists = activities.some(a => a.name.toLowerCase() === val.toLowerCase());
+            if (!exists) createItemFromQueryDirect(val);
+          }
+        }
+      });
+
+      document.getElementById('confirmCancelBtn')?.addEventListener('click', closeConfirmDialog);
+      document.getElementById('confirmOkBtn')?.addEventListener('click', () => {
+        if (pendingConfirmAction) pendingConfirmAction();
+        closeConfirmDialog();
+      });
+
+      document.getElementById('homeSearchInput')?.addEventListener('input', (e) => {
+        renderHomeView(e.target.value);
+      });
+      document.getElementById('dictSearchInput')?.addEventListener('input', (e) => {
+        renderDictionaryView(e.target.value);
+      });
+
+      const backupModal = document.getElementById('backupModal');
+      document.getElementById('backupModalBtn')?.addEventListener('click', () => backupModal?.classList.remove('hidden'));
+      document.getElementById('closeBackupModalBtn')?.addEventListener('click', () => backupModal?.classList.add('hidden'));
+
+      document.getElementById('exportDataBtn')?.addEventListener('click', () => {
+        const exportPayload = { activities, categories, version: '2.5' };
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute("href", dataStr);
+        downloadAnchor.setAttribute("download", `timeelapsed_backup_${new Date().toISOString().slice(0,10)}.json`);
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+        showToast("已匯出 JSON 備份檔");
+        backupModal?.classList.add('hidden');
+      });
+
+      document.getElementById('importFileInput')?.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const imported = JSON.parse(event.target.result);
+            if (Array.isArray(imported)) {
+              activities = imported.map(item => {
+                if (!item.categories) item.categories = item.category ? [item.category] : [];
+                if (typeof item.isArchived !== 'boolean') item.isArchived = false;
+                if (item.history) item.history = item.history.map(h => ({ ...h, note: h.note || '' }));
+                return item;
+              });
+            } else if (imported.activities && Array.isArray(imported.activities)) {
+              activities = imported.activities.map(item => {
+                if (!item.categories) item.categories = item.category ? [item.category] : [];
+                if (typeof item.isArchived !== 'boolean') item.isArchived = false;
+                if (item.history) item.history = item.history.map(h => ({ ...h, note: h.note || '' }));
+                return item;
+              });
+              if (Array.isArray(imported.categories)) categories = imported.categories;
+            } else {
+              showToast("格式錯誤，無法匯入", "ph-x-circle");
+              return;
+            }
+            saveData();
+            saveCategories();
+            refreshAll();
+            backupModal?.classList.add('hidden');
+            showToast("成功匯入紀錄資料！");
+          } catch (err) {
+            showToast("檔案讀取失敗", "ph-x-circle");
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      switchView('home');
+
+      setInterval(updateHeaderDateDisplay, 60000);
+    });
+  </script>
+</body>
+</html>
