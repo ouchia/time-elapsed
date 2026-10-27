@@ -46,6 +46,14 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
+    /* Touch swipe animation hint */
+    .view-transition {
+      animation: fadeIn 0.15s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0.65; transform: translateY(2px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body class="bg-neutral-100 text-neutral-900 dark:bg-black dark:text-neutral-100 min-h-screen flex flex-col justify-between font-sans antialiased transition-colors duration-200">
@@ -59,7 +67,15 @@
         <div class="flex items-center gap-1.5">
           <span class="text-[11px] font-mono tracking-wider uppercase text-neutral-500 dark:text-neutral-400 font-bold" id="headerDate">TODAY</span>
         </div>
-        <h1 class="text-lg font-black tracking-tight text-neutral-950 dark:text-white" id="viewTitle">歷時</h1>
+        <div class="flex items-center gap-2">
+          <h1 class="text-lg font-black tracking-tight text-neutral-950 dark:text-white" id="viewTitle">歷時</h1>
+          <!-- View Indicator Dots for Swiping -->
+          <div class="flex items-center gap-1 pl-1">
+            <span id="dotHome" class="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 transition-all duration-200"></span>
+            <span id="dotDict" class="w-1.5 h-1.5 rounded-full bg-neutral-300 dark:bg-neutral-700 transition-all duration-200"></span>
+            <span id="dotReport" class="w-1.5 h-1.5 rounded-full bg-neutral-300 dark:bg-neutral-700 transition-all duration-200"></span>
+          </div>
+        </div>
       </div>
       <div class="flex items-center gap-1.5 relative">
         <button id="themeToggleBtn" aria-label="切換深淺色" class="p-2 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-900 transition text-neutral-600 dark:text-neutral-400">
@@ -93,11 +109,11 @@
       </div>
     </header>
 
-    <!-- Main Scrollable Views -->
+    <!-- Main Scrollable Views with Swipe Detection -->
     <main class="flex-1 overflow-y-auto no-scrollbar px-3 pt-2.5 pb-6" id="mainContainer">
       
       <!-- VIEW 1: HOME -->
-      <section id="viewHome" class="space-y-3">
+      <section id="viewHome" class="space-y-3 view-transition">
         <!-- Top Search Bar -->
         <div class="relative">
           <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm"></i>
@@ -113,7 +129,7 @@
         </div>
 
         <!-- Horizontal Category Filter Tabs -->
-        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-xs select-none" id="homeCategoryTabs"></div>
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-xs select-none touch-pan-x" id="homeCategoryTabs"></div>
 
         <!-- Quick Summary Stats Card with Blue Highlight Accent -->
         <div class="grid grid-cols-2 gap-2 text-xs">
@@ -142,7 +158,7 @@
       </section>
 
       <!-- VIEW 2: DICTIONARY -->
-      <section id="viewDictionary" class="space-y-3 hidden">
+      <section id="viewDictionary" class="space-y-3 hidden view-transition">
         <!-- Sub tabs: Items / Categories / Archived -->
         <div class="bg-neutral-100 dark:bg-neutral-900 p-1 rounded-xl flex items-center justify-between text-xs font-semibold">
           <button id="dictSubTabItems" class="flex-1 py-1.5 rounded-lg text-center transition bg-white dark:bg-white text-neutral-950 dark:text-neutral-950 shadow-sm font-bold" onclick="switchDictSubTab('items')">全部項目</button>
@@ -208,7 +224,7 @@
       </section>
 
       <!-- VIEW 3: REPORT -->
-      <section id="viewReport" class="space-y-4 hidden">
+      <section id="viewReport" class="space-y-4 hidden view-transition">
         <!-- Period Switch Tabs: Day / Week / Month / Year -->
         <div class="bg-neutral-100 dark:bg-neutral-900 p-1 rounded-xl flex items-center justify-between text-xs font-semibold">
           <button class="report-period-tab flex-1 py-1.5 rounded-lg text-center transition bg-white dark:bg-white text-neutral-950 dark:text-neutral-950 shadow-sm font-bold" data-period="day">今日</button>
@@ -322,6 +338,35 @@
       </section>
 
     </main>
+
+    <!-- MODAL: EDIT NAME (ITEM OR CATEGORY) -->
+    <div id="editNameModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
+      <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-5 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3.5">
+        <div class="flex items-center justify-between pb-1 border-b border-neutral-100 dark:border-neutral-800">
+          <h3 class="font-bold text-sm text-neutral-900 dark:text-white" id="editNameModalTitle">編輯名稱</h3>
+          <button onclick="closeEditNameModal()" class="p-1 rounded-full text-neutral-400 hover:text-neutral-600">
+            <i class="ph ph-x text-base"></i>
+          </button>
+        </div>
+        <div class="space-y-2">
+          <label class="text-[11px] text-neutral-400 font-medium block" id="editNameModalLabel">輸入新名稱</label>
+          <input 
+            type="text" 
+            id="editNameInput" 
+            placeholder="請輸入名稱..." 
+            class="w-full bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 text-xs px-3 py-2 rounded-xl border border-transparent focus:border-neutral-400 dark:focus:border-neutral-600 focus:outline-none"
+          />
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button onclick="closeEditNameModal()" class="flex-1 py-2 text-xs font-semibold rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
+            取消
+          </button>
+          <button id="saveEditNameBtn" class="flex-1 py-2 text-xs font-bold rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-950 shadow transition">
+            儲存
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- MODAL: DATE RECORD DETAIL & NOTE ACTION -->
     <div id="dateActionModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
@@ -526,6 +571,8 @@
     const CATEGORIES_KEY = 'timeelapsed_categories_v2';
     const THEME_KEY = 'timeelapsed_theme_pref';
 
+    const VIEW_ORDER = ['home', 'dictionary', 'report'];
+
     let activities = [];
     let categories = []; 
     let currentView = 'home';
@@ -541,6 +588,13 @@
     let pendingConfirmAction = null;
     let isNavMenuOpen = false;
     let activeCatModalActivityId = null;
+
+    // Edit Name Modal State
+    let editNameState = {
+      type: null, // 'item' or 'category'
+      id: null,   // activity id or old category name
+      callback: null
+    };
 
     const DEFAULT_CATEGORIES = ['保健食品', '大掃除', '身體健康', '居家生活'];
     const DEFAULT_DATA = [];
@@ -570,30 +624,123 @@
       const menuDict = document.getElementById('menuItemDict');
       const menuReport = document.getElementById('menuItemReport');
 
+      const dotHome = document.getElementById('dotHome');
+      const dotDict = document.getElementById('dotDict');
+      const dotReport = document.getElementById('dotReport');
+
       const activeMenuClass = "w-full flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-xl transition bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400";
       const normalMenuClass = "w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl transition text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800";
+
+      const activeDotClass = "w-2.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 transition-all duration-200";
+      const inactiveDotClass = "w-1.5 h-1.5 rounded-full bg-neutral-300 dark:bg-neutral-700 transition-all duration-200";
 
       if (menuHome) menuHome.className = normalMenuClass;
       if (menuDict) menuDict.className = normalMenuClass;
       if (menuReport) menuReport.className = normalMenuClass;
 
+      if (dotHome) dotHome.className = inactiveDotClass;
+      if (dotDict) dotDict.className = inactiveDotClass;
+      if (dotReport) dotReport.className = inactiveDotClass;
+
       if (viewName === 'home') {
         vHome.classList.remove('hidden');
         if (titleEl) titleEl.innerText = '歷時';
         if (menuHome) menuHome.className = activeMenuClass;
+        if (dotHome) dotHome.className = activeDotClass;
         renderHomeCategoryTabs();
-        renderHomeView(document.getElementById('homeSearchInput').value || '');
+        renderHomeView(document.getElementById('homeSearchInput')?.value || '');
       } else if (viewName === 'dictionary') {
         vDict.classList.remove('hidden');
         if (titleEl) titleEl.innerText = '辭典';
         if (menuDict) menuDict.className = activeMenuClass;
-        renderDictionaryView(document.getElementById('dictSearchInput').value || '');
+        if (dotDict) dotDict.className = activeDotClass;
+        renderDictionaryView(document.getElementById('dictSearchInput')?.value || '');
       } else if (viewName === 'report') {
         vReport.classList.remove('hidden');
         if (titleEl) titleEl.innerText = '報告';
         if (menuReport) menuReport.className = activeMenuClass;
+        if (dotReport) dotReport.className = activeDotClass;
         renderReportView();
       }
+
+      // Scroll view back to top on switch
+      const mainContainer = document.getElementById('mainContainer');
+      if (mainContainer) mainContainer.scrollTop = 0;
+    }
+
+    // --- LOOP VIEW SWITCHING (SWIPE GESTURE HANDLER) ---
+    function navigateViewLoop(direction) {
+      const currentIndex = VIEW_ORDER.indexOf(currentView);
+      if (currentIndex === -1) return;
+
+      let nextIndex;
+      if (direction === 'next') {
+        // swipe left: go forward with loop
+        nextIndex = (currentIndex + 1) % VIEW_ORDER.length;
+      } else if (direction === 'prev') {
+        // swipe right: go backward with loop
+        nextIndex = (currentIndex - 1 + VIEW_ORDER.length) % VIEW_ORDER.length;
+      }
+      if (typeof nextIndex === 'number') {
+        switchView(VIEW_ORDER[nextIndex]);
+      }
+    }
+
+    function initSwipeGestures() {
+      const container = document.getElementById('mainContainer');
+      if (!container) return;
+
+      let startX = 0;
+      let startY = 0;
+      let startTime = 0;
+
+      container.addEventListener('touchstart', (e) => {
+        // Ignore multi-touch
+        if (e.touches.length !== 1) return;
+        
+        // If touching inside horizontally scrollable elements (like category tabs or calendar days), don't trigger page swipe
+        if (e.target.closest('#homeCategoryTabs') || e.target.closest('input') || e.target.closest('textarea')) {
+          startX = 0;
+          startY = 0;
+          return;
+        }
+
+        // If any modal is actively shown, disable swipe navigation
+        const isModalOpen = document.querySelector('#editNameModal:not(.hidden), #dateActionModal:not(.hidden), #itemCategoryModal:not(.hidden), #confirmDialog:not(.hidden), #backupModal:not(.hidden)');
+        if (isModalOpen) {
+          startX = 0;
+          startY = 0;
+          return;
+        }
+
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        startTime = Date.now();
+      }, { passive: true });
+
+      container.addEventListener('touchend', (e) => {
+        if (!startX || !startY) return;
+        const endX = e.changedTouches[0].clientX;
+        const endY = e.changedTouches[0].clientY;
+        const diffX = endX - startX;
+        const diffY = endY - startY;
+        const elapsed = Date.now() - startTime;
+
+        startX = 0;
+        startY = 0;
+
+        // Validation thresholds: horizontal move at least 45px, more horizontal than vertical, under 700ms
+        const minSwipeDistance = 45;
+        if (Math.abs(diffX) > minSwipeDistance && Math.abs(diffX) > Math.abs(diffY) * 1.3 && elapsed < 700) {
+          if (diffX < 0) {
+            // Swiped Left -> Next View (Loop)
+            navigateViewLoop('next');
+          } else {
+            // Swiped Right -> Prev View (Loop)
+            navigateViewLoop('prev');
+          }
+        }
+      }, { passive: true });
     }
 
     function loadData() {
@@ -1019,6 +1166,130 @@
       renderItemCategoryModalChips();
       refreshAll();
       showToast(`已建立分類「${val}」`);
+    }
+
+    // --- EDIT NAME MODAL FUNCTIONS ---
+    function openEditItemNameModal(activityId) {
+      const act = activities.find(a => a.id === activityId);
+      if (!act) return;
+
+      editNameState = {
+        type: 'item',
+        id: activityId
+      };
+
+      const modal = document.getElementById('editNameModal');
+      const titleEl = document.getElementById('editNameModalTitle');
+      const labelEl = document.getElementById('editNameModalLabel');
+      const input = document.getElementById('editNameInput');
+
+      if (titleEl) titleEl.innerText = "編輯項目名稱";
+      if (labelEl) labelEl.innerText = "修改追蹤項目名稱";
+      if (input) {
+        input.value = act.name;
+        input.focus();
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function openEditCategoryNameModal(oldCatName) {
+      editNameState = {
+        type: 'category',
+        id: oldCatName
+      };
+
+      const modal = document.getElementById('editNameModal');
+      const titleEl = document.getElementById('editNameModalTitle');
+      const labelEl = document.getElementById('editNameModalLabel');
+      const input = document.getElementById('editNameInput');
+
+      if (titleEl) titleEl.innerText = "編輯分類名稱";
+      if (labelEl) labelEl.innerText = "修改分類名稱（將同步更新所屬項目）";
+      if (input) {
+        input.value = oldCatName;
+        input.focus();
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeEditNameModal() {
+      editNameState = { type: null, id: null };
+      document.getElementById('editNameModal').classList.add('hidden');
+    }
+
+    function submitEditName() {
+      const input = document.getElementById('editNameInput');
+      const newName = input ? input.value.trim() : '';
+      if (!newName) {
+        showToast("名稱不能為空", "ph-warning");
+        return;
+      }
+
+      if (editNameState.type === 'item') {
+        const act = activities.find(a => a.id === editNameState.id);
+        if (!act) return;
+
+        // Check if name unchanged
+        if (act.name === newName) {
+          closeEditNameModal();
+          return;
+        }
+
+        // Check if another item already has this name
+        const exists = activities.some(a => a.id !== act.id && a.name.toLowerCase() === newName.toLowerCase());
+        if (exists) {
+          showToast("已有同名的追蹤事項", "ph-warning");
+          return;
+        }
+
+        const oldName = act.name;
+        act.name = newName;
+        saveData();
+        closeEditNameModal();
+        refreshAll();
+        showToast(`已將「${oldName}」重新命名為「${newName}」`);
+
+      } else if (editNameState.type === 'category') {
+        const oldCatName = editNameState.id;
+        if (oldCatName === newName) {
+          closeEditNameModal();
+          return;
+        }
+
+        if (categories.includes(newName)) {
+          showToast("已存在相同名稱的分類", "ph-warning");
+          return;
+        }
+
+        // Update categories array
+        const catIndex = categories.indexOf(oldCatName);
+        if (catIndex >= 0) {
+          categories[catIndex] = newName;
+          saveCategories();
+        }
+
+        // Migrate all activities referencing oldCatName
+        activities.forEach(act => {
+          if (Array.isArray(act.categories)) {
+            const idx = act.categories.indexOf(oldCatName);
+            if (idx >= 0) {
+              act.categories[idx] = newName;
+            }
+          }
+        });
+        saveData();
+
+        // Update home filter tab if selected
+        if (selectedHomeCategory === oldCatName) {
+          selectedHomeCategory = newName;
+        }
+
+        closeEditNameModal();
+        refreshAll();
+        showToast(`已將分類「${oldCatName}」重新命名為「${newName}」`);
+      }
     }
 
     function toggleRecordNoteEdit(activityId, recordId) {
@@ -1573,7 +1844,6 @@
               : '<span class="text-[10px] text-neutral-400">無分類</span>';
 
             const latestTime = getLatestTimestamp(item);
-            const totalSpan = calculateTotalSpanDays(item);
 
             row.innerHTML = `
               <div class="min-w-0 flex-1 space-y-1">
@@ -1581,13 +1851,20 @@
                   <span class="font-bold text-xs text-neutral-900 dark:text-neutral-100">${escapeHTML(item.name)}</span>
                   ${catPills}
                 </div>
-                <div class="text-[11px] font-mono text-neutral-400">
-                  <span>共記錄 ${item.history ? item.history.length : 0} 次</span>
-                  <span> • 歷時 ${totalSpan} 天</span>
-                  <span> • 最後記錄: ${latestTime ? formatTimeOnly(latestTime) : '無'}</span>
-                </div>
+                ${latestTime ? `
+                  <div class="text-[11px] font-mono text-neutral-400">
+                    <span>最後記錄: ${formatPreciseDate(latestTime)}</span>
+                  </div>
+                ` : ''}
               </div>
               <div class="flex items-center gap-1">
+                <button 
+                  onclick="openEditItemNameModal('${item.id}')"
+                  class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
+                  title="編輯項目名稱"
+                >
+                  <i class="ph ph-pencil-simple text-sm"></i>
+                </button>
                 <button 
                   onclick="openItemCategoryModal('${item.id}')"
                   class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
@@ -1640,13 +1917,24 @@
                     ${linkedActivities.length} 項
                   </span>
                 </div>
-                <button 
-                  onclick="requestDeleteCategory('${escapeHTML(cat)}')"
-                  class="text-[11px] text-neutral-400 hover:text-red-500 transition px-2 py-1 rounded hover:bg-neutral-200/50 dark:hover:bg-neutral-800 flex items-center gap-1"
-                >
-                  <i class="ph ph-trash text-xs"></i>
-                  刪除
-                </button>
+                <div class="flex items-center gap-1">
+                  <button 
+                    onclick="openEditCategoryNameModal('${escapeHTML(cat)}')"
+                    class="text-[11px] text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition px-2 py-1 rounded hover:bg-neutral-200/50 dark:hover:bg-neutral-800 flex items-center gap-1"
+                    title="編輯分類名稱"
+                  >
+                    <i class="ph ph-pencil-simple text-xs"></i>
+                    編輯
+                  </button>
+                  <button 
+                    onclick="requestDeleteCategory('${escapeHTML(cat)}')"
+                    class="text-[11px] text-neutral-400 hover:text-red-500 transition px-2 py-1 rounded hover:bg-neutral-200/50 dark:hover:bg-neutral-800 flex items-center gap-1"
+                    title="刪除分類"
+                  >
+                    <i class="ph ph-trash text-xs"></i>
+                    刪除
+                  </button>
+                </div>
               </div>
               <div class="flex items-center gap-1 flex-wrap">
                 ${linkedActivities.length > 0 
@@ -1688,8 +1976,7 @@
             
             row.innerHTML = `
               <div class="min-w-0 flex-1">
-                <span class="font-bold text-xs text-neutral-800 dark:text-neutral-200 line-through">${escapeHTML(item.name)}</span>
-                <p class="text-[11px] text-neutral-400 mt-0.5">歷史紀錄：${item.history ? item.history.length : 0} 筆</p>
+                <span class="font-bold text-xs text-neutral-800 dark:text-neutral-200">${escapeHTML(item.name)}</span>
               </div>
               <div class="flex items-center gap-1">
                 <button 
@@ -2340,6 +2627,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       loadData();
       updateHeaderDateDisplay();
+      initSwipeGestures();
 
       const savedTheme = localStorage.getItem(THEME_KEY);
       if (savedTheme === 'dark') {
@@ -2369,6 +2657,11 @@
       document.getElementById('addCategoryBtn')?.addEventListener('click', addNewCategory);
       document.getElementById('newCategoryInput')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') addNewCategory();
+      });
+
+      document.getElementById('saveEditNameBtn')?.addEventListener('click', submitEditName);
+      document.getElementById('editNameInput')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitEditName();
       });
 
       document.getElementById('closeDateActionBtn')?.addEventListener('click', closeDateActionModal);
