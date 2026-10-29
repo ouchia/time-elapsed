@@ -46,7 +46,6 @@
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
-    /* Touch swipe animation hint */
     .view-transition {
       animation: fadeIn 0.15s ease-out;
     }
@@ -71,7 +70,7 @@
           <h1 class="text-lg font-black tracking-tight text-neutral-950 dark:text-white" id="viewTitle">歷時</h1>
           <!-- View Indicator Dots for Swiping -->
           <div class="flex items-center gap-1 pl-1">
-            <span id="dotHome" class="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 transition-all duration-200"></span>
+            <span id="dotHome" class="w-2.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 transition-all duration-200"></span>
             <span id="dotDict" class="w-1.5 h-1.5 rounded-full bg-neutral-300 dark:bg-neutral-700 transition-all duration-200"></span>
             <span id="dotReport" class="w-1.5 h-1.5 rounded-full bg-neutral-300 dark:bg-neutral-700 transition-all duration-200"></span>
           </div>
@@ -137,7 +136,6 @@
             <span class="text-[10px] text-neutral-400 font-medium">追蹤事項</span>
             <p class="text-lg font-bold text-neutral-900 dark:text-neutral-100 leading-tight" id="totalItemsCount">0</p>
           </div>
-          <!-- Today done card with dynamic blue styling -->
           <div id="todayDoneCard" class="p-2.5 rounded-xl border transition-all duration-200 bg-neutral-50 dark:bg-neutral-900/60 border-neutral-200/60 dark:border-neutral-800/80">
             <span class="text-[10px] text-neutral-400 font-medium" id="todayDoneLabel">今日已記錄</span>
             <p class="text-lg font-bold text-neutral-900 dark:text-neutral-100 leading-tight" id="todayDoneCount">0</p>
@@ -204,9 +202,19 @@
           </div>
           <div class="flex items-center justify-between px-1">
             <span class="text-xs text-neutral-500 dark:text-neutral-400 font-medium">分類及所屬項目一覽</span>
-            <span class="text-[11px] font-mono text-neutral-400" id="dictCategoriesCountBadge">0 類</span>
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] font-mono text-neutral-400" id="dictCategoriesCountBadge">0 類</span>
+              <button 
+                id="openCategorySortBtn" 
+                onclick="openCategorySortModal()" 
+                class="text-xs px-2.5 py-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 font-bold transition flex items-center gap-1 shadow-xs"
+              >
+                <i class="ph ph-arrows-down-up text-xs"></i>
+                <span>排序</span>
+              </button>
+            </div>
           </div>
-          <div class="space-y-2.5" id="dictCategoryCardsList"></div>
+          <div class="space-y-2.5 relative" id="dictCategoryCardsList"></div>
         </div>
 
         <!-- Panel 3: Archived Items -->
@@ -225,7 +233,7 @@
 
       <!-- VIEW 3: REPORT -->
       <section id="viewReport" class="space-y-4 hidden view-transition">
-        <!-- Period Switch Tabs: Day / Week / Month / Year -->
+        <!-- Period Switch Tabs -->
         <div class="bg-neutral-100 dark:bg-neutral-900 p-1 rounded-xl flex items-center justify-between text-xs font-semibold">
           <button class="report-period-tab flex-1 py-1.5 rounded-lg text-center transition bg-white dark:bg-white text-neutral-950 dark:text-neutral-950 shadow-sm font-bold" data-period="day">今日</button>
           <button class="report-period-tab flex-1 py-1.5 rounded-lg text-center transition text-neutral-500 dark:text-neutral-400" data-period="week">本週</button>
@@ -274,10 +282,9 @@
           <div id="focusedHistoryList" class="space-y-1.5 max-h-60 overflow-y-auto no-scrollbar"></div>
         </div>
 
-        <!-- Dynamic Period-Bound Rankings Switcher Tab: Frequency Top 5 vs Regularity Top 5 -->
+        <!-- Dynamic Period-Bound Rankings Switcher -->
         <div class="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/70 dark:border-neutral-800 space-y-2.5">
           <div class="flex items-center justify-between">
-            <!-- Ranking Switcher Tabs -->
             <div class="inline-flex bg-neutral-200/80 dark:bg-neutral-800 p-0.5 rounded-lg text-xs font-semibold">
               <button 
                 id="rankTabFrequencyBtn" 
@@ -297,7 +304,6 @@
             <span class="text-[10px] font-mono text-neutral-400" id="reportRankSubLabel">次數排行</span>
           </div>
 
-          <!-- Dynamic Ranking List Container -->
           <div id="reportDynamicRankList" class="space-y-1.5"></div>
         </div>
 
@@ -368,19 +374,41 @@
       </div>
     </div>
 
-    <!-- MODAL: DATE RECORD DETAIL & NOTE ACTION -->
+    <!-- MODAL: CATEGORY REORDERING (DRAG & DROP) -->
+    <div id="categorySortModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
+      <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3">
+        <div class="flex items-center justify-between pb-1 border-b border-neutral-100 dark:border-neutral-800">
+          <div class="flex items-center gap-1.5">
+            <i class="ph ph-arrows-down-up text-sm text-neutral-500"></i>
+            <h3 class="font-bold text-sm text-neutral-900 dark:text-white">調整分類排序</h3>
+          </div>
+          <button onclick="closeCategorySortModal()" class="p-1 rounded-full text-neutral-400 hover:text-neutral-600">
+            <i class="ph ph-x text-base"></i>
+          </button>
+        </div>
+        <p class="text-[11px] text-neutral-400">按住右側圖示拖曳以調整次序，首頁標籤將同步更新</p>
+        <div id="categorySortList" class="space-y-1.5 max-h-72 overflow-y-auto no-scrollbar py-1 relative"></div>
+        <div class="pt-2">
+          <button onclick="closeCategorySortModal()" class="w-full py-2 text-xs font-bold rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-950 shadow transition">
+            完成
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: DATE RECORD DETAIL & NOTE ACTION (AUTO-EXPANDING TEXTAREA) -->
     <div id="dateActionModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
       <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3">
         <div class="flex items-center justify-between pb-1 border-b border-neutral-100 dark:border-neutral-800">
           <div>
             <h3 class="font-bold text-sm text-neutral-900 dark:text-white" id="dateActionTitle">紀錄詳情</h3>
-            <p class="text-[11px] font-mono text-neutral-400" id="dateActionSub">2026/10/26</p>
+            <p class="text-[11px] font-mono text-neutral-400" id="dateActionSub">2026/10/28</p>
           </div>
           <button id="closeDateActionBtn" class="p-1 rounded-full text-neutral-400 hover:text-neutral-600">
             <i class="ph ph-x text-base"></i>
           </button>
         </div>
-        <div id="dateRecordsList" class="space-y-2 max-h-56 overflow-y-auto no-scrollbar"></div>
+        <div id="dateRecordsList" class="space-y-2 max-h-64 overflow-y-auto no-scrollbar"></div>
       </div>
     </div>
 
@@ -396,7 +424,6 @@
           </button>
         </div>
 
-        <!-- Add new category inline -->
         <div class="flex gap-1.5 pt-1">
           <input 
             type="text" 
@@ -412,7 +439,6 @@
           </button>
         </div>
 
-        <!-- Category tag chips list -->
         <div class="pt-1">
           <div id="catModalChipsContainer" class="flex flex-wrap gap-1.5 max-h-44 overflow-y-auto no-scrollbar py-1"></div>
         </div>
@@ -473,7 +499,7 @@
 
   </div>
 
-  <!-- APPLICATION LOGIC & INLINE PWA SERVICE WORKER -->
+  <!-- APPLICATION LOGIC -->
   <script>
     // --- PWA ASSETS & SERVICE WORKER INJECTION ---
     (function setupPWAInstallation() {
@@ -588,16 +614,18 @@
     let pendingConfirmAction = null;
     let isNavMenuOpen = false;
     let activeCatModalActivityId = null;
+    let modalDragSrcIndex = null;
+    let modalTouchDraggingEl = null;
+    let modalTouchStartIndex = null;
+    let modalAutoScrollTimer = null;
 
     // Edit Name Modal State
     let editNameState = {
-      type: null, // 'item' or 'category'
-      id: null,   // activity id or old category name
-      callback: null
+      type: null,
+      id: null
     };
 
     const DEFAULT_CATEGORIES = ['保健食品', '大掃除', '身體健康', '居家生活'];
-    const DEFAULT_DATA = [];
 
     function escapeHTML(str) {
       if (!str) return '';
@@ -607,6 +635,12 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    function autoResizeTextarea(el) {
+      if (!el) return;
+      el.style.height = 'auto';
+      el.style.height = Math.max(30, el.scrollHeight) + 'px';
     }
 
     function switchView(viewName) {
@@ -663,7 +697,6 @@
         renderReportView();
       }
 
-      // Scroll view back to top on switch
       const mainContainer = document.getElementById('mainContainer');
       if (mainContainer) mainContainer.scrollTop = 0;
     }
@@ -675,10 +708,8 @@
 
       let nextIndex;
       if (direction === 'next') {
-        // swipe left: go forward with loop
         nextIndex = (currentIndex + 1) % VIEW_ORDER.length;
       } else if (direction === 'prev') {
-        // swipe right: go backward with loop
         nextIndex = (currentIndex - 1 + VIEW_ORDER.length) % VIEW_ORDER.length;
       }
       if (typeof nextIndex === 'number') {
@@ -695,18 +726,15 @@
       let startTime = 0;
 
       container.addEventListener('touchstart', (e) => {
-        // Ignore multi-touch
         if (e.touches.length !== 1) return;
         
-        // If touching inside horizontally scrollable elements (like category tabs or calendar days), don't trigger page swipe
         if (e.target.closest('#homeCategoryTabs') || e.target.closest('input') || e.target.closest('textarea')) {
           startX = 0;
           startY = 0;
           return;
         }
 
-        // If any modal is actively shown, disable swipe navigation
-        const isModalOpen = document.querySelector('#editNameModal:not(.hidden), #dateActionModal:not(.hidden), #itemCategoryModal:not(.hidden), #confirmDialog:not(.hidden), #backupModal:not(.hidden)');
+        const isModalOpen = document.querySelector('#editNameModal:not(.hidden), #categorySortModal:not(.hidden), #dateActionModal:not(.hidden), #itemCategoryModal:not(.hidden), #confirmDialog:not(.hidden), #backupModal:not(.hidden)');
         if (isModalOpen) {
           startX = 0;
           startY = 0;
@@ -729,14 +757,11 @@
         startX = 0;
         startY = 0;
 
-        // Validation thresholds: horizontal move at least 45px, more horizontal than vertical, under 700ms
         const minSwipeDistance = 45;
         if (Math.abs(diffX) > minSwipeDistance && Math.abs(diffX) > Math.abs(diffY) * 1.3 && elapsed < 700) {
           if (diffX < 0) {
-            // Swiped Left -> Next View (Loop)
             navigateViewLoop('next');
           } else {
-            // Swiped Right -> Prev View (Loop)
             navigateViewLoop('prev');
           }
         }
@@ -948,6 +973,7 @@
       renderHomeView(document.getElementById('homeSearchInput').value);
     }
 
+    // --- DATE ACTION MODAL (EDIT & LOCK WORKFLOW WITH AUTO-EXPANDING TEXTAREA) ---
     function openDateActionModal(activityId, year, month, day) {
       const activity = activities.find(a => a.id === activityId);
       if (!activity) return;
@@ -984,16 +1010,17 @@
               class="text-xs bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-2 py-1 rounded-lg border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 font-mono"
             />
           </div>
-          <div class="flex items-center gap-1.5">
-            <input 
-              type="text" 
+          <div class="flex items-start gap-1.5">
+            <textarea 
               id="modal-backlog-note" 
+              rows="1"
               placeholder="新增備註 (選填)..." 
-              class="flex-1 min-w-0 text-xs bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-2.5 py-1.5 rounded-xl border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500"
-            />
+              class="flex-1 min-w-0 text-xs bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-2.5 py-1.5 rounded-xl border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 resize-none transition leading-relaxed"
+              oninput="autoResizeTextarea(this)"
+            ></textarea>
             <button 
               onclick="submitModalDayBacklog('${activity.id}', ${year}, ${month}, ${day})"
-              class="px-3.5 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-bold rounded-xl transition shadow-xs whitespace-nowrap flex-shrink-0"
+              class="px-3.5 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-bold rounded-xl transition shadow-xs whitespace-nowrap flex-shrink-0 mt-0.5"
             >
               補登
             </button>
@@ -1004,14 +1031,21 @@
         matchingRecords.forEach((rec) => {
           const row = document.createElement('div');
           row.className = "p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-700/80 space-y-2";
-          const hasNote = Boolean(rec.note && rec.note.trim());
           
           row.innerHTML = `
             <div class="flex items-center justify-between">
-              <span class="text-xs font-mono font-bold text-neutral-800 dark:text-neutral-200 flex items-center gap-1">
-                <i class="ph ph-clock text-xs text-neutral-400"></i>
-                ${formatTimeOnly(rec.timestamp)}
-              </span>
+              <div class="flex items-center gap-1.5" id="time-container-${rec.id}">
+                <i class="ph ph-clock text-xs text-neutral-400 flex-shrink-0"></i>
+                <span id="time-display-${rec.id}" class="text-xs font-mono font-bold text-neutral-800 dark:text-neutral-200">
+                  ${formatTimeOnly(rec.timestamp)}
+                </span>
+                <input 
+                  type="time" 
+                  id="time-input-${rec.id}" 
+                  value="${formatTimeOnly(rec.timestamp)}" 
+                  class="hidden text-xs font-mono font-semibold bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-2 py-1 rounded-lg border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500"
+                />
+              </div>
               <button 
                 onclick="confirmDeleteRecordFromModal('${activity.id}', '${rec.id}')"
                 class="px-2 py-1 text-[11px] rounded-lg bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-900 hover:text-white dark:hover:bg-white dark:hover:text-neutral-950 text-neutral-700 dark:text-neutral-300 font-medium transition flex items-center gap-1"
@@ -1020,33 +1054,95 @@
                 刪除此筆
               </button>
             </div>
-            <div class="flex items-center gap-1.5" id="note-container-${rec.id}">
-              <input 
-                type="text" 
+            <div class="flex items-start gap-1.5" id="note-container-${rec.id}">
+              <textarea 
                 id="note-input-${rec.id}" 
-                placeholder="新增備註..." 
-                value="${escapeHTML(rec.note || '')}" 
-                ${hasNote ? 'readonly' : ''} 
-                class="flex-1 text-xs py-1.5 rounded-lg transition ${
-                  hasNote 
-                    ? 'bg-transparent text-neutral-600 dark:text-neutral-400 border-none outline-none shadow-none px-0 cursor-default select-none' 
-                    : 'px-2.5 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500'
-                }"
-              />
+                rows="1"
+                placeholder="無備註" 
+                readonly
+                class="flex-1 text-xs py-1 px-1 rounded-xl bg-transparent text-neutral-700 dark:text-neutral-300 border-none outline-none shadow-none cursor-default select-none resize-none leading-relaxed transition whitespace-pre-wrap break-words"
+                oninput="autoResizeTextarea(this)"
+              >${escapeHTML(rec.note || '')}</textarea>
               <button 
                 id="note-action-btn-${rec.id}"
-                onclick="toggleRecordNoteEdit('${activity.id}', '${rec.id}')"
-                class="px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-semibold rounded-lg transition whitespace-nowrap"
+                onclick="toggleRecordEditState('${activity.id}', '${rec.id}')"
+                class="px-3.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold rounded-xl transition whitespace-nowrap shadow-xs flex-shrink-0"
               >
-                ${hasNote ? '編輯' : '儲存'}
+                編輯
               </button>
             </div>
           `;
           listEl.appendChild(row);
+
+          setTimeout(() => {
+            const ta = document.getElementById(`note-input-${rec.id}`);
+            if (ta) autoResizeTextarea(ta);
+          }, 0);
         });
       }
 
       modal.classList.remove('hidden');
+    }
+
+    function toggleRecordEditState(activityId, recordId) {
+      const input = document.getElementById(`note-input-${recordId}`);
+      const btn = document.getElementById(`note-action-btn-${recordId}`);
+      const timeDisplay = document.getElementById(`time-display-${recordId}`);
+      const timeInput = document.getElementById(`time-input-${recordId}`);
+      if (!input || !btn) return;
+      
+      const act = activities.find(a => a.id === activityId);
+      if (!act) return;
+      const rec = (act.history || []).find(r => r.id === recordId);
+      if (!rec) return;
+
+      const isReadOnly = input.hasAttribute('readonly');
+
+      if (isReadOnly) {
+        // Switch to EDIT MODE
+        input.removeAttribute('readonly');
+        input.placeholder = "輸入備註內容...";
+        input.className = "flex-1 text-xs px-2.5 py-1.5 rounded-xl bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 resize-none leading-relaxed transition";
+        autoResizeTextarea(input);
+        
+        if (timeDisplay && timeInput) {
+          timeDisplay.classList.add('hidden');
+          timeInput.classList.remove('hidden');
+        }
+        
+        btn.innerText = '儲存';
+        btn.className = "px-3.5 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-bold rounded-xl transition whitespace-nowrap shadow-xs flex-shrink-0 mt-0.5";
+        input.focus();
+      } else {
+        // SAVE and LOCK
+        if (timeInput && timeInput.value) {
+          const [newHours, newMinutes] = timeInput.value.split(':').map(Number);
+          const curDate = new Date(rec.timestamp);
+          if (!isNaN(newHours) && !isNaN(newMinutes)) {
+            curDate.setHours(newHours, newMinutes, 0, 0);
+            rec.timestamp = curDate.getTime();
+          }
+        }
+
+        rec.note = input.value.trim();
+        act.history.sort((a, b) => b.timestamp - a.timestamp);
+        saveData();
+
+        // Switch back to LOCKED MODE
+        input.setAttribute('readonly', 'true');
+        input.className = "flex-1 text-xs py-1 px-1 rounded-xl bg-transparent text-neutral-700 dark:text-neutral-300 border-none outline-none shadow-none cursor-default select-none resize-none leading-relaxed transition whitespace-pre-wrap break-words";
+        autoResizeTextarea(input);
+        
+        if (timeDisplay && timeInput) {
+          timeDisplay.innerText = formatTimeOnly(rec.timestamp);
+          timeDisplay.classList.remove('hidden');
+          timeInput.classList.add('hidden');
+        }
+
+        btn.innerText = '編輯';
+        btn.className = "px-3.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold rounded-xl transition whitespace-nowrap shadow-xs flex-shrink-0";
+        showToast("紀錄已儲存");
+      }
     }
 
     function submitModalDayBacklog(activityId, year, month, day) {
@@ -1077,8 +1173,24 @@
 
     function closeDateActionModal() {
       document.getElementById('dateActionModal').classList.add('hidden');
+      const homeSearch = document.getElementById('homeSearchInput')?.value || '';
+      renderHomeView(homeSearch);
+      renderReportView();
     }
 
+    function confirmDeleteRecordFromModal(activityId, recordId) {
+      triggerConfirm('刪除單筆紀錄', '確定要刪除這筆歷史紀錄嗎？', () => {
+        const act = activities.find(a => a.id === activityId);
+        if (!act) return;
+        act.history = act.history.filter(r => r.id !== recordId);
+        saveData();
+        closeDateActionModal();
+        refreshAll();
+        showToast("已刪除紀錄");
+      });
+    }
+
+    // --- ITEM CATEGORY ASSIGNMENT MODAL ---
     function openItemCategoryModal(activityId) {
       activeCatModalActivityId = activityId;
       const activity = activities.find(a => a.id === activityId);
@@ -1168,7 +1280,7 @@
       showToast(`已建立分類「${val}」`);
     }
 
-    // --- EDIT NAME MODAL FUNCTIONS ---
+    // --- EDIT NAME (ITEM OR CATEGORY) MODAL ---
     function openEditItemNameModal(activityId) {
       const act = activities.find(a => a.id === activityId);
       if (!act) return;
@@ -1231,13 +1343,11 @@
         const act = activities.find(a => a.id === editNameState.id);
         if (!act) return;
 
-        // Check if name unchanged
         if (act.name === newName) {
           closeEditNameModal();
           return;
         }
 
-        // Check if another item already has this name
         const exists = activities.some(a => a.id !== act.id && a.name.toLowerCase() === newName.toLowerCase());
         if (exists) {
           showToast("已有同名的追蹤事項", "ph-warning");
@@ -1263,14 +1373,12 @@
           return;
         }
 
-        // Update categories array
         const catIndex = categories.indexOf(oldCatName);
         if (catIndex >= 0) {
           categories[catIndex] = newName;
           saveCategories();
         }
 
-        // Migrate all activities referencing oldCatName
         activities.forEach(act => {
           if (Array.isArray(act.categories)) {
             const idx = act.categories.indexOf(oldCatName);
@@ -1281,7 +1389,6 @@
         });
         saveData();
 
-        // Update home filter tab if selected
         if (selectedHomeCategory === oldCatName) {
           selectedHomeCategory = newName;
         }
@@ -1292,45 +1399,7 @@
       }
     }
 
-    function toggleRecordNoteEdit(activityId, recordId) {
-      const input = document.getElementById(`note-input-${recordId}`);
-      const btn = document.getElementById(`note-action-btn-${recordId}`);
-      if (!input || !btn) return;
-      const act = activities.find(a => a.id === activityId);
-      if (!act) return;
-      const rec = (act.history || []).find(r => r.id === recordId);
-      if (!rec) return;
-
-      const isReadOnly = input.hasAttribute('readonly');
-
-      if (isReadOnly) {
-        input.removeAttribute('readonly');
-        input.className = "flex-1 text-xs px-2.5 py-1.5 rounded-lg border bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 transition";
-        input.focus();
-        btn.innerText = '儲存';
-      } else {
-        rec.note = input.value.trim();
-        saveData();
-        input.setAttribute('readonly', 'true');
-        input.className = "flex-1 text-xs py-1.5 rounded-lg bg-transparent text-neutral-600 dark:text-neutral-400 border-none outline-none shadow-none px-0 cursor-default select-none transition";
-        btn.innerText = '編輯';
-        showToast("備註已儲存");
-        refreshAll();
-      }
-    }
-
-    function confirmDeleteRecordFromModal(activityId, recordId) {
-      triggerConfirm('刪除單筆紀錄', '確定要刪除這筆歷史紀錄嗎？', () => {
-        const act = activities.find(a => a.id === activityId);
-        if (!act) return;
-        act.history = act.history.filter(r => r.id !== recordId);
-        saveData();
-        closeDateActionModal();
-        refreshAll();
-        showToast("已刪除紀錄");
-      });
-    }
-
+    // --- MINI CALENDAR COMPONENT ---
     function generateMiniCalendarHTML(activity) {
       const { year, month } = getActivityCalendarDate(activity.id);
       
@@ -1628,7 +1697,7 @@
         const isLast = idx === items.length - 1;
         const lineHTML = isLast 
           ? '' 
-          : `<div class="absolute left-2.5 top-5 bottom-0 w-px bg-neutral-200 dark:bg-neutral-800"></div>`;
+          : `<div class="absolute left-2.5 top-5 bottom-0 w-px bg-neutral-200 dark:border-neutral-800"></div>`;
 
         let dotHTML = '';
         if (isDoneToday) {
@@ -1903,15 +1972,15 @@
         if (categories.length === 0 && dictSubTab === 'categories') {
           catCardsList.innerHTML = `<div class="py-8 text-center text-xs text-neutral-400">尚未建立任何分類</div>`;
         } else {
-          categories.forEach(cat => {
+          categories.forEach((cat, index) => {
             const card = document.createElement('div');
-            card.className = "p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 space-y-2";
+            card.className = "p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 space-y-2 select-none relative";
             
             const linkedActivities = activities.filter(a => !a.isArchived && (a.categories || []).includes(cat));
 
             card.innerHTML = `
               <div class="flex items-center justify-between">
-                <div class="flex items-center gap-1.5">
+                <div class="flex items-center gap-2">
                   <span class="font-bold text-xs text-neutral-900 dark:text-neutral-100">${escapeHTML(cat)}</span>
                   <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
                     ${linkedActivities.length} 項
@@ -2001,6 +2070,143 @@
       }
     }
 
+    // --- CATEGORY SORT MODAL COMPONENT (DRAG & DROP) ---
+    function openCategorySortModal() {
+      const modal = document.getElementById('categorySortModal');
+      renderCategorySortModalList();
+      modal?.classList.remove('hidden');
+    }
+
+    function closeCategorySortModal() {
+      const modal = document.getElementById('categorySortModal');
+      modal?.classList.add('hidden');
+      renderDictionaryView(document.getElementById('dictSearchInput')?.value || '');
+      renderHomeCategoryTabs();
+      renderHomeView(document.getElementById('homeSearchInput')?.value || '');
+      if (modalAutoScrollTimer) clearInterval(modalAutoScrollTimer);
+    }
+
+    function renderCategorySortModalList() {
+      const list = document.getElementById('categorySortList');
+      if (!list) return;
+      list.innerHTML = '';
+
+      if (categories.length === 0) {
+        list.innerHTML = `<div class="py-6 text-center text-xs text-neutral-400">尚未建立任何分類</div>`;
+        return;
+      }
+
+      categories.forEach((cat, idx) => {
+        const item = document.createElement('div');
+        item.className = "sort-item flex items-center justify-between p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/80 border border-neutral-200/80 dark:border-neutral-700 text-xs select-none transition-all duration-150";
+        item.dataset.index = idx;
+
+        item.innerHTML = `
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="w-5 h-5 rounded-full bg-neutral-200 dark:bg-neutral-700 font-mono text-[11px] font-bold flex items-center justify-center text-neutral-600 dark:text-neutral-300 flex-shrink-0">${idx + 1}</span>
+            <span class="font-bold text-neutral-900 dark:text-neutral-100 truncate">${escapeHTML(cat)}</span>
+          </div>
+          <div 
+            class="drag-grip p-1.5 -mr-1 text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center"
+            title="按住拖曳排序"
+            draggable="true"
+          >
+            <i class="ph ph-dots-six-vertical text-base font-bold"></i>
+          </div>
+        `;
+
+        setupModalItemDrag(item, idx, list);
+        list.appendChild(item);
+      });
+    }
+
+    function setupModalItemDrag(itemEl, index, listContainer) {
+      const grip = itemEl.querySelector('.drag-grip');
+      if (!grip) return;
+
+      // Desktop HTML5 Drag
+      grip.addEventListener('dragstart', (e) => {
+        modalDragSrcIndex = index;
+        itemEl.classList.add('opacity-40', 'scale-[0.98]');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', index);
+      });
+
+      itemEl.addEventListener('dragend', () => {
+        itemEl.classList.remove('opacity-40', 'scale-[0.98]');
+        modalDragSrcIndex = null;
+      });
+
+      itemEl.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      });
+
+      itemEl.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (modalDragSrcIndex === null || modalDragSrcIndex === index) return;
+        applyCategoryReorder(modalDragSrcIndex, index);
+      });
+
+      // Mobile Touch Drag
+      grip.addEventListener('touchstart', (e) => {
+        modalTouchStartIndex = index;
+        modalTouchDraggingEl = itemEl;
+        itemEl.classList.add('opacity-50', 'ring-2', 'ring-blue-500', 'scale-[1.02]', 'shadow-lg');
+      }, { passive: true });
+
+      grip.addEventListener('touchmove', (e) => {
+        if (!modalTouchDraggingEl) return;
+        const touch = e.touches[0];
+        
+        // Auto scroll inside modal container if near edges
+        const containerRect = listContainer.getBoundingClientRect();
+        if (touch.clientY < containerRect.top + 30) {
+          listContainer.scrollTop -= 6;
+        } else if (touch.clientY > containerRect.bottom - 30) {
+          listContainer.scrollTop += 6;
+        }
+
+        const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+        const overItem = targetEl ? targetEl.closest('.sort-item') : null;
+        if (overItem && overItem !== modalTouchDraggingEl) {
+          const overIdx = parseInt(overItem.dataset.index, 10);
+          if (!isNaN(overIdx) && modalTouchStartIndex !== null && modalTouchStartIndex !== overIdx) {
+            applyCategoryReorder(modalTouchStartIndex, overIdx, false);
+            modalTouchStartIndex = overIdx;
+          }
+        }
+      }, { passive: false });
+
+      const finishTouch = () => {
+        if (modalTouchDraggingEl) {
+          modalTouchDraggingEl.classList.remove('opacity-50', 'ring-2', 'ring-blue-500', 'scale-[1.02]', 'shadow-lg');
+          modalTouchDraggingEl = null;
+          modalTouchStartIndex = null;
+          renderCategorySortModalList();
+          renderDictionaryView(document.getElementById('dictSearchInput')?.value || '');
+          renderHomeCategoryTabs();
+          renderHomeView(document.getElementById('homeSearchInput')?.value || '');
+        }
+      };
+
+      grip.addEventListener('touchend', finishTouch);
+      grip.addEventListener('touchcancel', finishTouch);
+    }
+
+    function applyCategoryReorder(fromIndex, toIndex, reRender = true) {
+      if (fromIndex < 0 || fromIndex >= categories.length || toIndex < 0 || toIndex >= categories.length) return;
+      const [moved] = categories.splice(fromIndex, 1);
+      categories.splice(toIndex, 0, moved);
+      saveCategories();
+      if (reRender) {
+        renderCategorySortModalList();
+        renderDictionaryView(document.getElementById('dictSearchInput')?.value || '');
+        renderHomeCategoryTabs();
+        renderHomeView(document.getElementById('homeSearchInput')?.value || '');
+      }
+    }
+
     function requestDeleteCategory(catName) {
       triggerConfirm('刪除分類', `確定要刪除「${catName}」分類嗎？相關事項不會被刪除，僅會移除此分類標籤。`, () => {
         categories = categories.filter(c => c !== catName);
@@ -2017,6 +2223,7 @@
       });
     }
 
+    // --- REPORT VIEW COMPONENT & RANKINGS ---
     function setReportPeriod(period) {
       reportPeriod = period;
       document.querySelectorAll('.report-period-tab').forEach(tab => {
@@ -2429,7 +2636,7 @@
                     </div>
                   </div>
                   ${log.note ? `
-                    <div class="text-[11px] text-neutral-400 dark:text-neutral-500 font-sans break-words whitespace-normal leading-normal pl-3.5">
+                    <div class="text-[11px] text-neutral-400 dark:text-neutral-500 font-sans break-words whitespace-normal leading-normal pl-3.5 whitespace-pre-wrap">
                       ${escapeHTML(log.note)}
                     </div>
                   ` : ''}
@@ -2531,7 +2738,7 @@
               </div>
             </div>
             ${log.note ? `
-              <div class="text-[11px] text-neutral-400 dark:text-neutral-500 font-sans break-words whitespace-normal leading-normal pl-3.5">
+              <div class="text-[11px] text-neutral-400 dark:text-neutral-500 font-sans break-words whitespace-normal leading-normal pl-3.5 whitespace-pre-wrap">
                 ${escapeHTML(log.note)}
               </div>
             ` : ''}
