@@ -279,7 +279,7 @@
             </div>
             <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-200/80 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300" id="focusedHistoryCountBadge">未鎖定</span>
           </div>
-          <div id="focusedHistoryList" class="space-y-1.5 max-h-60 overflow-y-auto no-scrollbar"></div>
+          <div id="focusedHistoryList" class="space-y-1 max-h-60 overflow-y-auto no-scrollbar"></div>
         </div>
 
         <!-- Dynamic Period-Bound Rankings Switcher -->
@@ -337,7 +337,7 @@
             </div>
           </button>
           
-          <div id="reportHistoryLogContainer" class="space-y-1.5 pt-1 hidden">
+          <div id="reportHistoryLogContainer" class="space-y-1 pt-1 hidden">
             <div id="reportHistoryLogList" class="space-y-1 max-h-80 overflow-y-auto no-scrollbar"></div>
           </div>
         </div>
@@ -374,7 +374,7 @@
       </div>
     </div>
 
-    <!-- MODAL: CATEGORY REORDERING (DRAG & DROP) -->
+    <!-- MODAL: CATEGORY REORDERING (DRAG & DROP WITH LONG-PRESS TOUCH GUARD) -->
     <div id="categorySortModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
       <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3">
         <div class="flex items-center justify-between pb-1 border-b border-neutral-100 dark:border-neutral-800">
@@ -386,7 +386,7 @@
             <i class="ph ph-x text-base"></i>
           </button>
         </div>
-        <p class="text-[11px] text-neutral-400">按住右側圖示拖曳以調整次序，首頁標籤將同步更新</p>
+        <p class="text-[11px] text-neutral-400">長按右側圖示拖曳以調整次序，首頁標籤將同步更新</p>
         <div id="categorySortList" class="space-y-1.5 max-h-72 overflow-y-auto no-scrollbar py-1 relative"></div>
         <div class="pt-2">
           <button onclick="closeCategorySortModal()" class="w-full py-2 text-xs font-bold rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-950 shadow transition">
@@ -617,6 +617,9 @@
     let modalDragSrcIndex = null;
     let modalTouchDraggingEl = null;
     let modalTouchStartIndex = null;
+    let modalTouchHoldTimer = null;
+    let modalIsTouchDragActive = false;
+    let modalTouchStartPos = { x: 0, y: 0 };
     let modalAutoScrollTimer = null;
 
     // Edit Name Modal State
@@ -2005,7 +2008,7 @@
                   </button>
                 </div>
               </div>
-              <div class="flex items-center gap-1 flex-wrap">
+              <div class="flex items-gap-1 flex-wrap">
                 ${linkedActivities.length > 0 
                   ? linkedActivities.map(a => `
                       <span class="text-[11px] px-2 py-0.5 rounded-md bg-white dark:bg-neutral-800 border border-neutral-200/70 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300">
@@ -2070,7 +2073,7 @@
       }
     }
 
-    // --- CATEGORY SORT MODAL COMPONENT (DRAG & DROP) ---
+    // --- CATEGORY SORT MODAL COMPONENT (DRAG & DROP WITH DELIBERATE TOUCH PRESS) ---
     function openCategorySortModal() {
       const modal = document.getElementById('categorySortModal');
       renderCategorySortModalList();
@@ -2084,6 +2087,7 @@
       renderHomeCategoryTabs();
       renderHomeView(document.getElementById('homeSearchInput')?.value || '');
       if (modalAutoScrollTimer) clearInterval(modalAutoScrollTimer);
+      if (modalTouchHoldTimer) clearTimeout(modalTouchHoldTimer);
     }
 
     function renderCategorySortModalList() {
@@ -2148,17 +2152,47 @@
         applyCategoryReorder(modalDragSrcIndex, index);
       });
 
-      // Mobile Touch Drag
+      // Mobile Touch Drag with Long-Press (長按防誤觸機制)
       grip.addEventListener('touchstart', (e) => {
-        modalTouchStartIndex = index;
-        modalTouchDraggingEl = itemEl;
-        itemEl.classList.add('opacity-50', 'ring-2', 'ring-blue-500', 'scale-[1.02]', 'shadow-lg');
+        if (e.touches.length !== 1) return;
+        const touch = e.touches[0];
+        modalTouchStartPos = { x: touch.clientX, y: touch.clientY };
+        modalIsTouchDragActive = false;
+
+        if (modalTouchHoldTimer) clearTimeout(modalTouchHoldTimer);
+
+        // 長按 220ms 判定為刻意拖曳，而非誤觸或一般滑動
+        modalTouchHoldTimer = setTimeout(() => {
+          modalIsTouchDragActive = true;
+          modalTouchStartIndex = index;
+          modalTouchDraggingEl = itemEl;
+          itemEl.classList.add('opacity-60', 'ring-2', 'ring-blue-500', 'scale-[1.02]', 'shadow-lg');
+
+          // 支援震動回饋 (輕微震動告知已抓起)
+          if (navigator.vibrate) {
+            try { navigator.vibrate(30); } catch (_) {}
+          }
+        }, 220);
       }, { passive: true });
 
       grip.addEventListener('touchmove', (e) => {
-        if (!modalTouchDraggingEl) return;
         const touch = e.touches[0];
-        
+
+        // 若尚未達到長按時間就位移超過 8px，視為普通滾動清單，取消長按拖曳
+        if (!modalIsTouchDragActive) {
+          const dist = Math.hypot(touch.clientX - modalTouchStartPos.x, touch.clientY - modalTouchStartPos.y);
+          if (dist > 8) {
+            if (modalTouchHoldTimer) {
+              clearTimeout(modalTouchHoldTimer);
+              modalTouchHoldTimer = null;
+            }
+          }
+          return;
+        }
+
+        if (!modalTouchDraggingEl) return;
+        e.preventDefault();
+
         // Auto scroll inside modal container if near edges
         const containerRect = listContainer.getBoundingClientRect();
         if (touch.clientY < containerRect.top + 30) {
@@ -2179,15 +2213,20 @@
       }, { passive: false });
 
       const finishTouch = () => {
-        if (modalTouchDraggingEl) {
-          modalTouchDraggingEl.classList.remove('opacity-50', 'ring-2', 'ring-blue-500', 'scale-[1.02]', 'shadow-lg');
-          modalTouchDraggingEl = null;
-          modalTouchStartIndex = null;
+        if (modalTouchHoldTimer) {
+          clearTimeout(modalTouchHoldTimer);
+          modalTouchHoldTimer = null;
+        }
+        if (modalIsTouchDragActive && modalTouchDraggingEl) {
+          modalTouchDraggingEl.classList.remove('opacity-60', 'ring-2', 'ring-blue-500', 'scale-[1.02]', 'shadow-lg');
           renderCategorySortModalList();
           renderDictionaryView(document.getElementById('dictSearchInput')?.value || '');
           renderHomeCategoryTabs();
           renderHomeView(document.getElementById('homeSearchInput')?.value || '');
         }
+        modalTouchDraggingEl = null;
+        modalTouchStartIndex = null;
+        modalIsTouchDragActive = false;
       };
 
       grip.addEventListener('touchend', finishTouch);
@@ -2611,10 +2650,11 @@
             } else {
               actHistory.forEach(log => {
                 const row = document.createElement('div');
-                row.className = "py-2 px-3 rounded-xl bg-white dark:bg-neutral-900/80 border border-neutral-100 dark:border-neutral-900 space-y-1 transition hover:border-neutral-300 dark:hover:border-neutral-700";
+                row.className = "py-1.5 px-2.5 rounded-xl bg-white dark:bg-neutral-900/80 border border-neutral-100 dark:border-neutral-900 transition hover:border-neutral-300 dark:hover:border-neutral-700 space-y-0.5";
+                const cleanNote = (log.note || '').replace(/^[\s\u3000]+/, '').trim();
                 row.innerHTML = `
                   <div class="flex items-center justify-between gap-2 text-xs">
-                    <div class="flex items-center gap-2 min-w-0">
+                    <div class="flex items-center gap-1.5 min-w-0">
                       <span class="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 flex-shrink-0"></span>
                       <span class="font-mono text-neutral-700 dark:text-neutral-300 font-semibold">${formatPreciseDate(log.timestamp)}</span>
                     </div>
@@ -2635,11 +2675,7 @@
                       </button>
                     </div>
                   </div>
-                  ${log.note ? `
-                    <div class="text-[11px] text-neutral-400 dark:text-neutral-500 font-sans break-words whitespace-normal leading-normal pl-3.5 whitespace-pre-wrap">
-                      ${escapeHTML(log.note)}
-                    </div>
-                  ` : ''}
+                  ${cleanNote ? `<div class="w-full text-left pt-0.5"><p class="text-xs font-sans text-neutral-600 dark:text-neutral-400 whitespace-pre-line break-words leading-normal select-text m-0 p-0">${escapeHTML(cleanNote)}</p></div>` : ''}
                 `;
                 focusedHistoryList.appendChild(row);
               });
@@ -2710,46 +2746,83 @@
       if (allLogs.length === 0) {
         reportHistoryLogList.innerHTML = `<p class="text-xs text-neutral-400 py-2 text-center">尚無任何歷史記錄</p>`;
       } else {
-        allLogs.slice(0, 50).forEach(log => {
-          const row = document.createElement('div');
-          row.className = "py-2 px-3 rounded-xl bg-white dark:bg-neutral-900/80 border border-neutral-100 dark:border-neutral-900 space-y-1 transition hover:border-neutral-300 dark:hover:border-neutral-700";
-          row.innerHTML = `
-            <div class="flex items-center justify-between gap-2 text-xs">
-              <div class="flex items-center gap-2 min-w-0">
-                <span class="w-1.5 h-1.5 rounded-full bg-neutral-400 flex-shrink-0"></span>
-                <span class="font-bold text-neutral-800 dark:text-neutral-200">${escapeHTML(log.activityName)}</span>
-              </div>
-              <div class="flex items-center gap-1.5 flex-shrink-0 font-mono text-xs text-neutral-400">
-                <span>${formatPreciseDate(log.timestamp)}</span>
-                <button 
-                  onclick="promptEditHistoryNote('${log.activityId}', '${log.recordId}')" 
-                  class="p-1 rounded text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition"
-                  title="編輯此筆紀錄備註"
-                >
-                  <i class="ph ph-pencil-simple text-sm"></i>
-                </button>
-                <button 
-                  onclick="requestDeleteSingleRecord('${log.activityId}', '${log.recordId}')" 
-                  class="p-1 rounded text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition"
-                  title="刪除此筆"
-                >
-                  <i class="ph ph-trash text-sm"></i>
-                </button>
-              </div>
-            </div>
-            ${log.note ? `
-              <div class="text-[11px] text-neutral-400 dark:text-neutral-500 font-sans break-words whitespace-normal leading-normal pl-3.5 whitespace-pre-wrap">
-                ${escapeHTML(log.note)}
-              </div>
-            ` : ''}
-          `;
-          reportHistoryLogList.appendChild(row);
+        // Group records by Date (YYYY/MM/DD)
+        const dateGroups = {};
+        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+
+        allLogs.slice(0, 100).forEach(log => {
+          const d = new Date(log.timestamp);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          const dateKey = `${y}/${m}/${day}`;
+          const weekdayStr = `週${weekdays[d.getDay()]}`;
+
+          if (!dateGroups[dateKey]) {
+            dateGroups[dateKey] = {
+              dateLabel: `${dateKey} (${weekdayStr})`,
+              logs: []
+            };
+          }
+          dateGroups[dateKey].logs.push(log);
         });
 
-        if (allLogs.length > 50) {
+        Object.keys(dateGroups).forEach(dateKey => {
+          const group = dateGroups[dateKey];
+          const groupBlock = document.createElement('div');
+          groupBlock.className = "space-y-1 pt-1.5 first:pt-0";
+
+          // Date Header
+          const header = document.createElement('div');
+          header.className = "flex items-center justify-between px-1 py-0.5 text-[11px] font-bold text-neutral-500 dark:text-neutral-400 border-b border-neutral-100 dark:border-neutral-900";
+          header.innerHTML = `
+            <span class="font-mono">${group.dateLabel}</span>
+            <span class="font-mono text-[10px] text-neutral-400">${group.logs.length} 筆</span>
+          `;
+          groupBlock.appendChild(header);
+
+          // Items in Date Group
+          group.logs.forEach(log => {
+            const row = document.createElement('div');
+            row.className = "py-1.5 px-2.5 rounded-xl bg-white dark:bg-neutral-900/80 border border-neutral-100 dark:border-neutral-900 transition hover:border-neutral-300 dark:hover:border-neutral-700 space-y-0.5";
+            const cleanNote = (log.note || '').replace(/^[\s\u3000]+/, '').trim();
+
+            row.innerHTML = `
+              <div class="flex items-center justify-between gap-2 text-xs">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="w-1.5 h-1.5 rounded-full bg-neutral-400 flex-shrink-0"></span>
+                  <span class="font-bold text-neutral-800 dark:text-neutral-200 truncate">${escapeHTML(log.activityName)}</span>
+                </div>
+                <div class="flex items-center gap-1.5 flex-shrink-0 font-mono text-xs text-neutral-400">
+                  <span>${formatTimeOnly(log.timestamp)}</span>
+                  <button 
+                    onclick="promptEditHistoryNote('${log.activityId}', '${log.recordId}')" 
+                    class="p-1 rounded text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition"
+                    title="編輯此筆紀錄備註"
+                  >
+                    <i class="ph ph-pencil-simple text-sm"></i>
+                  </button>
+                  <button 
+                    onclick="requestDeleteSingleRecord('${log.activityId}', '${log.recordId}')" 
+                    class="p-1 rounded text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition"
+                    title="刪除此筆"
+                  >
+                    <i class="ph ph-trash text-sm"></i>
+                  </button>
+                </div>
+              </div>
+              ${cleanNote ? `<div class="w-full text-left pt-0.5"><p class="text-xs font-sans text-neutral-600 dark:text-neutral-400 whitespace-pre-line break-words leading-normal select-text m-0 p-0">${escapeHTML(cleanNote)}</p></div>` : ''}
+            `;
+            groupBlock.appendChild(row);
+          });
+
+          reportHistoryLogList.appendChild(groupBlock);
+        });
+
+        if (allLogs.length > 100) {
           const moreTip = document.createElement('div');
           moreTip.className = "text-center text-xs text-neutral-400 py-1.5";
-          moreTip.innerText = `僅顯示最近 50 筆 (共 ${allLogs.length} 筆)`;
+          moreTip.innerText = `僅顯示最近 100 筆 (共 ${allLogs.length} 筆)`;
           reportHistoryLogList.appendChild(moreTip);
         }
       }
