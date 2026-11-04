@@ -396,7 +396,7 @@
       </div>
     </div>
 
-    <!-- MODAL: DATE RECORD DETAIL & NOTE ACTION (AUTO-EXPANDING TEXTAREA) -->
+    <!-- MODAL: DATE RECORD DETAIL & NOTE ACTION (AUTO-EXPANDING TEXTAREA & PERMANENT BACKLOG MODULE) -->
     <div id="dateActionModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
       <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3">
         <div class="flex items-center justify-between pb-1 border-b border-neutral-100 dark:border-neutral-800">
@@ -408,7 +408,15 @@
             <i class="ph ph-x text-base"></i>
           </button>
         </div>
-        <div id="dateRecordsList" class="space-y-2 max-h-64 overflow-y-auto no-scrollbar"></div>
+        <div id="dateRecordsList" class="space-y-2.5 max-h-80 overflow-y-auto no-scrollbar"></div>
+      </div>
+    </div>
+
+    <!-- MODAL: IMAGE PREVIEW LIGHTBOX (HIGH Z-INDEX) -->
+    <div id="imagePreviewModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm hidden" onclick="closeImagePreviewModal()">
+      <div class="relative max-w-sm max-h-[85vh] flex flex-col items-center">
+        <img id="imagePreviewTarget" src="" alt="預覽照片" class="max-h-[75vh] max-w-full w-auto rounded-2xl object-contain shadow-2xl border border-neutral-800" onclick="event.stopPropagation()" />
+        <button type="button" onclick="closeImagePreviewModal()" class="mt-3 px-5 py-1.5 bg-neutral-900/90 hover:bg-neutral-800 text-white rounded-full text-xs font-bold border border-neutral-700 shadow-md transition active:scale-95">關閉</button>
       </div>
     </div>
 
@@ -501,94 +509,119 @@
 
   <!-- APPLICATION LOGIC -->
   <script>
+    // --- SAFE LOCAL STORAGE HELPER (PREVENTS SANDBOX & COOKIE BLOCKS) ---
+    const safeStorage = {
+      get(key) {
+        try {
+          return localStorage.getItem(key);
+        } catch (e) {
+          console.warn('Storage get restricted:', e);
+          return null;
+        }
+      },
+      set(key, val) {
+        try {
+          localStorage.setItem(key, val);
+          return true;
+        } catch (e) {
+          console.warn('Storage set restricted:', e);
+          return false;
+        }
+      }
+    };
+
     // --- PWA ASSETS & SERVICE WORKER INJECTION ---
     (function setupPWAInstallation() {
-      const svgIconData = `data:image/svg+xml;charset=utf-8,` + encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-          <rect width="512" height="512" rx="112" fill="#0a0a0a"/>
-          <circle cx="256" cy="256" r="160" stroke="#f5f5f5" stroke-width="24" fill="none"/>
-          <polyline points="256,152 256,256 328,296" stroke="#3b82f6" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-          <circle cx="256" cy="256" r="12" fill="#3b82f6"/>
-        </svg>
-      `.trim());
+      try {
+        const svgIconData = `data:image/svg+xml;charset=utf-8,` + encodeURIComponent(`
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+            <rect width="512" height="512" rx="112" fill="#0a0a0a"/>
+            <circle cx="256" cy="256" r="160" stroke="#f5f5f5" stroke-width="24" fill="none"/>
+            <polyline points="256,152 256,256 328,296" stroke="#3b82f6" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle cx="256" cy="256" r="12" fill="#3b82f6"/>
+          </svg>
+        `.trim());
 
-      let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
-      if (!appleIcon) {
-        appleIcon = document.createElement('link');
-        appleIcon.rel = 'apple-touch-icon';
-        document.head.appendChild(appleIcon);
-      }
-      appleIcon.href = svgIconData;
+        let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
+        if (!appleIcon) {
+          appleIcon = document.createElement('link');
+          appleIcon.rel = 'apple-touch-icon';
+          document.head.appendChild(appleIcon);
+        }
+        appleIcon.href = svgIconData;
 
-      let favicon = document.querySelector('link[rel="icon"]');
-      if (!favicon) {
-        favicon = document.createElement('link');
-        favicon.rel = 'icon';
-        document.head.appendChild(favicon);
-      }
-      favicon.href = svgIconData;
+        let favicon = document.querySelector('link[rel="icon"]');
+        if (!favicon) {
+          favicon = document.createElement('link');
+          favicon.rel = 'icon';
+          document.head.appendChild(favicon);
+        }
+        favicon.href = svgIconData;
 
-      const manifest = {
-        name: "歷時 - TimeElapsed 極簡生活計時器",
-        short_name: "歷時",
-        description: "紀錄生活瑣事的歷時與規律",
-        start_url: window.location.href,
-        scope: window.location.pathname,
-        display: "standalone",
-        orientation: "portrait",
-        background_color: "#0a0a0a",
-        theme_color: "#0a0a0a",
-        icons: [
-          {
-            src: svgIconData,
-            sizes: "192x192",
-            type: "image/svg+xml",
-            purpose: "any maskable"
-          },
-          {
-            src: svgIconData,
-            sizes: "512x512",
-            type: "image/svg+xml",
-            purpose: "any maskable"
-          }
-        ]
-      };
+        const manifest = {
+          name: "歷時 - TimeElapsed 極簡生活計時器",
+          short_name: "歷時",
+          description: "紀錄生活瑣事的歷時與規律",
+          start_url: window.location.href,
+          scope: window.location.pathname,
+          display: "standalone",
+          orientation: "portrait",
+          background_color: "#0a0a0a",
+          theme_color: "#0a0a0a",
+          icons: [
+            {
+              src: svgIconData,
+              sizes: "192x192",
+              type: "image/svg+xml",
+              purpose: "any maskable"
+            },
+            {
+              src: svgIconData,
+              sizes: "512x512",
+              type: "image/svg+xml",
+              purpose: "any maskable"
+            }
+          ]
+        };
 
-      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
-      const manifestUrl = URL.createObjectURL(manifestBlob);
+        const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+        const manifestUrl = URL.createObjectURL(manifestBlob);
 
-      let manifestLink = document.querySelector('link[rel="manifest"]');
-      if (!manifestLink) {
-        manifestLink = document.createElement('link');
-        manifestLink.rel = 'manifest';
-        document.head.appendChild(manifestLink);
-      }
-      manifestLink.href = manifestUrl;
+        let manifestLink = document.querySelector('link[rel="manifest"]');
+        if (!manifestLink) {
+          manifestLink = document.createElement('link');
+          manifestLink.rel = 'manifest';
+          document.head.appendChild(manifestLink);
+        }
+        manifestLink.href = manifestUrl;
 
-      if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-        const swScript = `
-          const CACHE_NAME = 'timeelapsed-pwa-v1';
-          self.addEventListener('install', (e) => {
-            self.skipWaiting();
-          });
-          self.addEventListener('activate', (e) => {
-            e.waitUntil(self.clients.claim());
-          });
-          self.addEventListener('fetch', (e) => {
-            e.respondWith(
-              caches.match(e.request).then((res) => {
-                return res || fetch(e.request).catch(() => caches.match(e.request));
-              })
-            );
-          });
-        `;
-        const swBlob = new Blob([swScript], { type: 'application/javascript' });
-        const swUrl = URL.createObjectURL(swBlob);
+        if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+          const swScript = `
+            const CACHE_NAME = 'timeelapsed-pwa-v1';
+            self.addEventListener('install', (e) => {
+              self.skipWaiting();
+            });
+            self.addEventListener('activate', (e) => {
+              e.waitUntil(self.clients.claim());
+            });
+            self.addEventListener('fetch', (e) => {
+              e.respondWith(
+                caches.match(e.request).then((res) => {
+                  return res || fetch(e.request).catch(() => caches.match(e.request));
+                })
+              );
+            });
+          `;
+          const swBlob = new Blob([swScript], { type: 'application/javascript' });
+          const swUrl = URL.createObjectURL(swBlob);
 
-        navigator.serviceWorker.register(swUrl)
-          .catch(err => {
-            console.warn('Service worker setup note:', err);
-          });
+          navigator.serviceWorker.register(swUrl)
+            .catch(err => {
+              console.warn('Service worker setup note:', err);
+            });
+        }
+      } catch (err) {
+        console.warn('PWA initialization non-fatal warning:', err);
       }
     })();
 
@@ -621,6 +654,7 @@
     let modalIsTouchDragActive = false;
     let modalTouchStartPos = { x: 0, y: 0 };
     let modalAutoScrollTimer = null;
+    let modalBacklogImage = '';
 
     // Edit Name Modal State
     let editNameState = {
@@ -646,6 +680,69 @@
       el.style.height = Math.max(30, el.scrollHeight) + 'px';
     }
 
+    // --- CLIENT-SIDE IMAGE COMPRESSION (THUMBNAIL GENERATOR) ---
+    function compressImageToThumbnail(file, maxDimension = 400, quality = 0.65) {
+      return new Promise((resolve, reject) => {
+        if (!file) {
+          return reject(new Error('未選取檔案'));
+        }
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('讀取檔案失敗'));
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onerror = () => reject(new Error('無法載入圖片'));
+          img.onload = () => {
+            try {
+              let width = img.width;
+              let height = img.height;
+
+              if (width > height) {
+                if (width > maxDimension) {
+                  height = Math.round((height * maxDimension) / width);
+                  width = maxDimension;
+                }
+              } else {
+                if (height > maxDimension) {
+                  width = Math.round((width * maxDimension) / height);
+                  height = maxDimension;
+                }
+              }
+
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.max(1, width);
+              canvas.height = Math.max(1, height);
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, width, height);
+              
+              const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+              resolve(compressedBase64);
+            } catch (err) {
+              reject(err);
+            }
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function openImagePreviewModal(src) {
+      if (!src) return;
+      const modal = document.getElementById('imagePreviewModal');
+      const target = document.getElementById('imagePreviewTarget');
+      if (modal && target) {
+        target.src = src;
+        modal.classList.remove('hidden');
+      }
+    }
+
+    function closeImagePreviewModal() {
+      const modal = document.getElementById('imagePreviewModal');
+      const target = document.getElementById('imagePreviewTarget');
+      if (modal) modal.classList.add('hidden');
+      if (target) target.src = '';
+    }
+
     function switchView(viewName) {
       currentView = viewName;
       const vHome = document.getElementById('viewHome');
@@ -653,9 +750,9 @@
       const vReport = document.getElementById('viewReport');
       const titleEl = document.getElementById('viewTitle');
 
-      vHome.classList.add('hidden');
-      vDict.classList.add('hidden');
-      vReport.classList.add('hidden');
+      if (vHome) vHome.classList.add('hidden');
+      if (vDict) vDict.classList.add('hidden');
+      if (vReport) vReport.classList.add('hidden');
 
       const menuHome = document.getElementById('menuItemHome');
       const menuDict = document.getElementById('menuItemDict');
@@ -680,20 +777,20 @@
       if (dotReport) dotReport.className = inactiveDotClass;
 
       if (viewName === 'home') {
-        vHome.classList.remove('hidden');
+        if (vHome) vHome.classList.remove('hidden');
         if (titleEl) titleEl.innerText = '歷時';
         if (menuHome) menuHome.className = activeMenuClass;
         if (dotHome) dotHome.className = activeDotClass;
         renderHomeCategoryTabs();
         renderHomeView(document.getElementById('homeSearchInput')?.value || '');
       } else if (viewName === 'dictionary') {
-        vDict.classList.remove('hidden');
+        if (vDict) vDict.classList.remove('hidden');
         if (titleEl) titleEl.innerText = '辭典';
         if (menuDict) menuDict.className = activeMenuClass;
         if (dotDict) dotDict.className = activeDotClass;
         renderDictionaryView(document.getElementById('dictSearchInput')?.value || '');
       } else if (viewName === 'report') {
-        vReport.classList.remove('hidden');
+        if (vReport) vReport.classList.remove('hidden');
         if (titleEl) titleEl.innerText = '報告';
         if (menuReport) menuReport.className = activeMenuClass;
         if (dotReport) dotReport.className = activeDotClass;
@@ -737,7 +834,7 @@
           return;
         }
 
-        const isModalOpen = document.querySelector('#editNameModal:not(.hidden), #categorySortModal:not(.hidden), #dateActionModal:not(.hidden), #itemCategoryModal:not(.hidden), #confirmDialog:not(.hidden), #backupModal:not(.hidden)');
+        const isModalOpen = document.querySelector('#editNameModal:not(.hidden), #categorySortModal:not(.hidden), #dateActionModal:not(.hidden), #itemCategoryModal:not(.hidden), #confirmDialog:not(.hidden), #backupModal:not(.hidden), #imagePreviewModal:not(.hidden)');
         if (isModalOpen) {
           startX = 0;
           startY = 0;
@@ -773,8 +870,8 @@
 
     function loadData() {
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        const rawCat = localStorage.getItem(CATEGORIES_KEY);
+        const raw = safeStorage.get(STORAGE_KEY);
+        const rawCat = safeStorage.get(CATEGORIES_KEY);
         if (raw !== null) {
           const parsed = JSON.parse(raw);
           activities = parsed.map(item => {
@@ -782,7 +879,7 @@
             delete item.category;
             if (typeof item.isArchived !== 'boolean') item.isArchived = false;
             if (item.history) {
-              item.history = item.history.map(h => ({ ...h, note: h.note || '' }));
+              item.history = item.history.map(h => ({ ...h, note: h.note || '', image: h.image || '' }));
             }
             return item;
           });
@@ -806,7 +903,7 @@
 
     function saveData() {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(activities));
+        safeStorage.set(STORAGE_KEY, JSON.stringify(activities));
       } catch (e) {
         showToast("地端儲存容量已滿或失敗");
       }
@@ -814,7 +911,7 @@
 
     function saveCategories() {
       try {
-        localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
+        safeStorage.set(CATEGORIES_KEY, JSON.stringify(categories));
       } catch (e) {
         showToast("分類儲存失敗");
       }
@@ -823,6 +920,7 @@
     function showToast(message, icon = 'ph-check-circle') {
       const toast = document.getElementById('toast');
       const toastMsg = document.getElementById('toastMsg');
+      if (!toast || !toastMsg) return;
       toast.querySelector('i').className = `ph ${icon} text-sm`;
       toastMsg.innerText = message;
       
@@ -881,6 +979,14 @@
       const hour = String(d.getHours()).padStart(2, '0');
       const min = String(d.getMinutes()).padStart(2, '0');
       return `${hour}:${min}`;
+    }
+
+    function formatShortDate(timestamp) {
+      if (!timestamp) return '-';
+      const d = new Date(timestamp);
+      const month = d.getMonth() + 1;
+      const day = d.getDate();
+      return `${month}/${day}`;
     }
 
     function calculateTotalSpanDays(activity) {
@@ -961,22 +1067,22 @@
         newYear += 1;
       }
       calendarDateMap[activityId] = { year: newYear, month: newMonth };
-      renderHomeView(document.getElementById('homeSearchInput').value);
+      renderHomeView(document.getElementById('homeSearchInput')?.value || '');
     }
 
     function shiftActivityCalendarYear(activityId, yearDelta) {
       const state = getActivityCalendarDate(activityId);
       calendarDateMap[activityId] = { year: state.year + yearDelta, month: state.month };
-      renderHomeView(document.getElementById('homeSearchInput').value);
+      renderHomeView(document.getElementById('homeSearchInput')?.value || '');
     }
 
     function resetActivityCalendarToCurrent(activityId) {
       const now = new Date();
       calendarDateMap[activityId] = { year: now.getFullYear(), month: now.getMonth() };
-      renderHomeView(document.getElementById('homeSearchInput').value);
+      renderHomeView(document.getElementById('homeSearchInput')?.value || '');
     }
 
-    // --- DATE ACTION MODAL (EDIT & LOCK WORKFLOW WITH AUTO-EXPANDING TEXTAREA) ---
+    // --- DATE ACTION MODAL (EDIT & LOCK WORKFLOW + PERMANENT BACKLOG MODULE) ---
     function openDateActionModal(activityId, year, month, day) {
       const activity = activities.find(a => a.id === activityId);
       if (!activity) return;
@@ -996,45 +1102,38 @@
       subEl.innerText = `${dateStr} (${matchingRecords.length} 次紀錄)`;
 
       listEl.innerHTML = '';
+      modalBacklogImage = '';
 
-      if (matchingRecords.length === 0) {
-        const now = new Date();
-        const defaultTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        
-        const emptyBlock = document.createElement('div');
-        emptyBlock.className = "p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200/80 dark:border-neutral-700/80 space-y-2.5";
-        emptyBlock.innerHTML = `
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-neutral-400 font-mono">時間:</span>
-            <input 
-              type="time" 
-              id="modal-backlog-time" 
-              value="${defaultTime}" 
-              class="text-xs bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-2 py-1 rounded-lg border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 font-mono"
-            />
-          </div>
-          <div class="flex items-start gap-1.5">
-            <textarea 
-              id="modal-backlog-note" 
-              rows="1"
-              placeholder="新增備註 (選填)..." 
-              class="flex-1 min-w-0 text-xs bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-2.5 py-1.5 rounded-xl border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 resize-none transition leading-relaxed"
-              oninput="autoResizeTextarea(this)"
-            ></textarea>
-            <button 
-              onclick="submitModalDayBacklog('${activity.id}', ${year}, ${month}, ${day})"
-              class="px-3.5 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-bold rounded-xl transition shadow-xs whitespace-nowrap flex-shrink-0 mt-0.5"
-            >
-              補登
-            </button>
-          </div>
-        `;
-        listEl.appendChild(emptyBlock);
-      } else {
+      // 1. 若該日已有紀錄，優先列出歷史明細以供檢視與修改
+      if (matchingRecords.length > 0) {
+        const recordsHeader = document.createElement('div');
+        recordsHeader.className = "text-[11px] font-bold text-neutral-400 uppercase tracking-wider flex items-center justify-between px-0.5";
+        recordsHeader.innerHTML = `<span>當日既有紀錄</span><span class="font-mono">${matchingRecords.length} 筆</span>`;
+        listEl.appendChild(recordsHeader);
+
         matchingRecords.forEach((rec) => {
           const row = document.createElement('div');
           row.className = "p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-700/80 space-y-2";
           
+          const imgPreviewHTML = rec.image ? `
+            <div class="relative inline-block mt-1 group" id="record-img-wrap-${rec.id}">
+              <img 
+                src="${rec.image}" 
+                alt="縮圖" 
+                onclick="openImagePreviewModal(this.src)" 
+                class="w-12 h-12 object-cover rounded-lg border border-neutral-300 dark:border-neutral-700 cursor-pointer shadow-xs hover:opacity-90 transition"
+              />
+              <button 
+                type="button" 
+                id="record-img-del-${rec.id}" 
+                onclick="removeRecordImage('${activity.id}', '${rec.id}')" 
+                class="hidden absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-600 text-white rounded-full items-center justify-center text-[10px] shadow"
+              >
+                <i class="ph ph-x"></i>
+              </button>
+            </div>
+          ` : `<div id="record-img-wrap-${rec.id}" class="mt-1"></div>`;
+
           row.innerHTML = `
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-1.5" id="time-container-${rec.id}">
@@ -1054,25 +1153,40 @@
                 class="px-2 py-1 text-[11px] rounded-lg bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-900 hover:text-white dark:hover:bg-white dark:hover:text-neutral-950 text-neutral-700 dark:text-neutral-300 font-medium transition flex items-center gap-1"
               >
                 <i class="ph ph-trash text-xs"></i>
-                刪除此筆
+                刪除
               </button>
             </div>
-            <div class="flex items-start gap-1.5" id="note-container-${rec.id}">
-              <textarea 
-                id="note-input-${rec.id}" 
-                rows="1"
-                placeholder="無備註" 
-                readonly
-                class="flex-1 text-xs py-1 px-1 rounded-xl bg-transparent text-neutral-700 dark:text-neutral-300 border-none outline-none shadow-none cursor-default select-none resize-none leading-relaxed transition whitespace-pre-wrap break-words"
-                oninput="autoResizeTextarea(this)"
-              >${escapeHTML(rec.note || '')}</textarea>
-              <button 
-                id="note-action-btn-${rec.id}"
-                onclick="toggleRecordEditState('${activity.id}', '${rec.id}')"
-                class="px-3.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold rounded-xl transition whitespace-nowrap shadow-xs flex-shrink-0"
-              >
-                編輯
-              </button>
+
+            <div class="space-y-1">
+              <div class="flex items-start gap-1.5" id="note-container-${rec.id}">
+                <textarea 
+                  id="note-input-${rec.id}" 
+                  rows="1"
+                  placeholder="無備註" 
+                  readonly
+                  class="flex-1 text-xs py-1 px-1 rounded-xl bg-transparent text-neutral-700 dark:text-neutral-300 border-none outline-none shadow-none cursor-default select-none resize-none leading-relaxed transition whitespace-pre-wrap break-words"
+                  oninput="autoResizeTextarea(this)"
+                >${escapeHTML(rec.note || '')}</textarea>
+                <div class="flex items-center gap-1 flex-shrink-0">
+                  <label 
+                    id="record-upload-label-${rec.id}" 
+                    class="hidden p-1.5 rounded-xl bg-neutral-100 dark:bg-neutral-700 hover:bg-neutral-200 dark:hover:bg-neutral-600 cursor-pointer text-neutral-600 dark:text-neutral-300 transition mt-0.5" 
+                    title="上傳縮圖"
+                  >
+                    <i class="ph ph-image text-sm"></i>
+                    <input type="file" accept="image/*" class="hidden" onchange="handleRecordImageUpload(event, '${activity.id}', '${rec.id}')" />
+                  </label>
+                  <button 
+                    id="note-action-btn-${rec.id}"
+                    onclick="toggleRecordEditState('${activity.id}', '${rec.id}')"
+                    class="px-3.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold rounded-xl transition whitespace-nowrap shadow-xs flex-shrink-0"
+                  >
+                    編輯
+                  </button>
+                </div>
+              </div>
+
+              ${imgPreviewHTML}
             </div>
           `;
           listEl.appendChild(row);
@@ -1084,7 +1198,140 @@
         });
       }
 
+      // 2. 常駐補登模組（即便已有紀錄，亦永遠出現在下方供追加補登）
+      const now = new Date();
+      const defaultTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      
+      const backlogBlock = document.createElement('div');
+      backlogBlock.className = `p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200/80 dark:border-neutral-700/80 space-y-2.5 ${matchingRecords.length > 0 ? 'mt-1 pt-3 border-dashed border-neutral-300 dark:border-neutral-700' : ''}`;
+      
+      backlogBlock.innerHTML = `
+        <div class="flex items-center justify-start">
+          <input 
+            type="time" 
+            id="modal-backlog-time" 
+            value="${defaultTime}" 
+            class="text-xs bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-2 py-1 rounded-lg border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 font-mono"
+          />
+        </div>
+        <div class="space-y-1.5">
+          <div class="flex items-start gap-1.5">
+            <textarea 
+              id="modal-backlog-note" 
+              rows="1"
+              placeholder="新增備註 (選填)..." 
+              class="flex-1 min-w-0 text-xs bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-2.5 py-1.5 rounded-xl border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 resize-none transition leading-relaxed"
+              oninput="autoResizeTextarea(this)"
+            ></textarea>
+            <label class="p-1.5 rounded-xl bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 text-neutral-700 dark:text-neutral-200 cursor-pointer flex-shrink-0 transition mt-0.5" title="選擇照片 (將自動壓縮)">
+              <i class="ph ph-image text-sm"></i>
+              <input type="file" accept="image/*" class="hidden" onchange="handleBacklogImageUpload(event)" />
+            </label>
+            <button 
+              onclick="submitModalDayBacklog('${activity.id}', ${year}, ${month}, ${day})"
+              class="px-3.5 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-bold rounded-xl transition shadow-xs whitespace-nowrap flex-shrink-0 mt-0.5"
+            >
+              補登
+            </button>
+          </div>
+          <div id="modal-backlog-preview-container" class="hidden items-center gap-2 pt-1">
+            <img id="modal-backlog-preview-img" src="" class="w-12 h-12 object-cover rounded-lg border border-neutral-300 dark:border-neutral-700 cursor-pointer" onclick="openImagePreviewModal(this.src)" />
+            <button type="button" onclick="clearBacklogImage()" class="text-[11px] text-neutral-400 hover:text-red-500 transition">移除圖片</button>
+          </div>
+        </div>
+      `;
+      listEl.appendChild(backlogBlock);
+
       modal.classList.remove('hidden');
+    }
+
+    async function handleBacklogImageUpload(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        const thumbBase64 = await compressImageToThumbnail(file, 400, 0.65);
+        modalBacklogImage = thumbBase64;
+        const container = document.getElementById('modal-backlog-preview-container');
+        const img = document.getElementById('modal-backlog-preview-img');
+        if (container && img) {
+          img.src = thumbBase64;
+          container.classList.remove('hidden');
+          container.classList.add('flex');
+        }
+        showToast("縮圖已壓縮準備完成");
+      } catch (err) {
+        console.error(err);
+        showToast("圖片處理失敗", "ph-warning");
+      } finally {
+        e.target.value = '';
+      }
+    }
+
+    function clearBacklogImage() {
+      modalBacklogImage = '';
+      const container = document.getElementById('modal-backlog-preview-container');
+      const img = document.getElementById('modal-backlog-preview-img');
+      if (img) img.src = '';
+      if (container) {
+        container.classList.add('hidden');
+        container.classList.remove('flex');
+      }
+    }
+
+    async function handleRecordImageUpload(e, activityId, recordId) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        const thumbBase64 = await compressImageToThumbnail(file, 400, 0.65);
+        const act = activities.find(a => a.id === activityId);
+        if (!act) return;
+        const rec = (act.history || []).find(r => r.id === recordId);
+        if (!rec) return;
+
+        rec.image = thumbBase64;
+        saveData();
+
+        const wrap = document.getElementById(`record-img-wrap-${recordId}`);
+        if (wrap) {
+          wrap.innerHTML = `
+            <div class="relative inline-block mt-1 group">
+              <img 
+                src="${thumbBase64}" 
+                alt="縮圖" 
+                onclick="openImagePreviewModal(this.src)" 
+                class="w-12 h-12 object-cover rounded-lg border border-neutral-300 dark:border-neutral-700 cursor-pointer shadow-xs hover:opacity-90 transition"
+              />
+              <button 
+                type="button" 
+                id="record-img-del-${recordId}" 
+                onclick="removeRecordImage('${activityId}', '${recordId}')" 
+                class="flex absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-600 text-white rounded-full items-center justify-center text-[10px] shadow"
+              >
+                <i class="ph ph-x"></i>
+              </button>
+            </div>
+          `;
+        }
+        showToast("已更新照片縮圖");
+      } catch (err) {
+        console.error(err);
+        showToast("圖片上傳失敗", "ph-warning");
+      } finally {
+        e.target.value = '';
+      }
+    }
+
+    function removeRecordImage(activityId, recordId) {
+      const act = activities.find(a => a.id === activityId);
+      if (!act) return;
+      const rec = (act.history || []).find(r => r.id === recordId);
+      if (!rec) return;
+
+      rec.image = '';
+      saveData();
+      const wrap = document.getElementById(`record-img-wrap-${recordId}`);
+      if (wrap) wrap.innerHTML = '';
+      showToast("已移除縮圖");
     }
 
     function toggleRecordEditState(activityId, recordId) {
@@ -1092,6 +1339,8 @@
       const btn = document.getElementById(`note-action-btn-${recordId}`);
       const timeDisplay = document.getElementById(`time-display-${recordId}`);
       const timeInput = document.getElementById(`time-input-${recordId}`);
+      const uploadLabel = document.getElementById(`record-upload-label-${recordId}`);
+      const delImgBtn = document.getElementById(`record-img-del-${recordId}`);
       if (!input || !btn) return;
       
       const act = activities.find(a => a.id === activityId);
@@ -1111,6 +1360,12 @@
         if (timeDisplay && timeInput) {
           timeDisplay.classList.add('hidden');
           timeInput.classList.remove('hidden');
+        }
+
+        if (uploadLabel) uploadLabel.classList.remove('hidden');
+        if (delImgBtn) {
+          delImgBtn.classList.remove('hidden');
+          delImgBtn.classList.add('flex');
         }
         
         btn.innerText = '儲存';
@@ -1142,6 +1397,12 @@
           timeInput.classList.add('hidden');
         }
 
+        if (uploadLabel) uploadLabel.classList.add('hidden');
+        if (delImgBtn) {
+          delImgBtn.classList.add('hidden');
+          delImgBtn.classList.remove('flex');
+        }
+
         btn.innerText = '編輯';
         btn.className = "px-3.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold rounded-xl transition whitespace-nowrap shadow-xs flex-shrink-0";
         showToast("紀錄已儲存");
@@ -1163,14 +1424,25 @@
       const newRecord = {
         id: 'h-' + Date.now(),
         timestamp: targetDate.getTime(),
-        note: noteVal
+        note: noteVal,
+        image: modalBacklogImage || ''
       };
 
       activity.history.push(newRecord);
       activity.history.sort((a,b) => b.timestamp - a.timestamp);
       saveData();
-      closeDateActionModal();
-      refreshAll();
+      
+      modalBacklogImage = '';
+      
+      const homeSearch = document.getElementById('homeSearchInput')?.value || '';
+      const dictSearch = document.getElementById('dictSearchInput')?.value || '';
+      renderHomeCategoryTabs();
+      renderHomeView(homeSearch);
+      renderDictionaryView(dictSearch);
+      renderReportView();
+
+      openDateActionModal(activityId, year, month, day);
+
       showToast(`已補登「${activity.name}」紀錄`);
     }
 
@@ -1444,7 +1716,7 @@
             <button 
               onclick="event.stopPropagation(); openDateActionModal('${activity.id}', ${year}, ${month}, ${day})"
               class="relative w-6 h-6 rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold flex items-center justify-center text-xs hover:scale-110 transition active:scale-95 shadow-sm"
-              title="${year}/${month + 1}/${day} (已記錄 ${activeDaysMap[day]} 次，點擊修改/刪除/備註)"
+              title="${year}/${month + 1}/${day} (已記錄 ${activeDaysMap[day]} 次，點擊修改/刪除/補登)"
             >
               ${day}
               ${hasNote ? '<span class="absolute -bottom-0.5 w-1 h-1 rounded-full bg-neutral-400"></span>' : ''}
@@ -1523,7 +1795,7 @@
 
     function toggleItemExpand(activityId) {
       expandedItemId = (expandedItemId === activityId) ? null : activityId;
-      renderHomeView(document.getElementById('homeSearchInput').value);
+      renderHomeView(document.getElementById('homeSearchInput')?.value || '');
     }
 
     function createItemFromQueryDirect(name) {
@@ -1544,14 +1816,16 @@
           {
             id: 'h-' + Date.now(),
             timestamp: Date.now(),
-            note: ''
+            note: '',
+            image: ''
           }
         ]
       };
 
       activities.unshift(newAct);
       saveData();
-      document.getElementById('homeSearchInput').value = '';
+      const input = document.getElementById('homeSearchInput');
+      if (input) input.value = '';
       refreshAll();
       showToast(`已建立「${clean}」`);
     }
@@ -1579,7 +1853,7 @@
         btn.onclick = () => {
           selectedHomeCategory = tab.id;
           renderHomeCategoryTabs();
-          renderHomeView(document.getElementById('homeSearchInput').value);
+          renderHomeView(document.getElementById('homeSearchInput')?.value || '');
         };
         container.appendChild(btn);
       });
@@ -1684,6 +1958,19 @@
         if (emptyState) emptyState.classList.add('hidden');
       }
 
+      // 計算本週時間區間（週一 00:00:00 至週日 23:59:59）
+      const now = new Date();
+      const currentDay = now.getDay() || 7;
+      const weekStartDate = new Date(now);
+      weekStartDate.setDate(now.getDate() - currentDay + 1);
+      weekStartDate.setHours(0, 0, 0, 0);
+      const weekStartTime = weekStartDate.getTime();
+
+      const weekEndDate = new Date(weekStartDate);
+      weekEndDate.setDate(weekStartDate.getDate() + 6);
+      weekEndDate.setHours(23, 59, 59, 999);
+      const weekEndTime = weekEndDate.getTime();
+
       items.forEach((activity, idx) => {
         const latestTime = getLatestTimestamp(activity);
         const elapsed = getElapsedTimeBreakdown(latestTime);
@@ -1693,6 +1980,11 @@
 
         const latestRecord = activity.history && activity.history.length > 0 ? activity.history[0] : null;
         const latestNote = latestRecord && latestRecord.note ? latestRecord.note.trim() : '';
+
+        // 取出「本週內（週一~週日）」所有帶圖紀錄，並依時間由新至舊排序（最新的排在最前面）
+        const thisWeekImages = (activity.history || [])
+          .filter(h => h.image && h.timestamp >= weekStartTime && h.timestamp <= weekEndTime)
+          .sort((a, b) => b.timestamp - a.timestamp);
 
         const timelineNode = document.createElement('div');
         timelineNode.className = "relative pl-6 select-none";
@@ -1750,6 +2042,29 @@
           </button>
         `;
 
+        // 首頁河道縮圖展示（本週內所有照片，由新到舊並排橫向滑動）
+        let homeImagesHTML = '';
+        if (thisWeekImages.length > 0) {
+          homeImagesHTML = `
+            <div class="mt-2 flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5" onclick="event.stopPropagation()">
+              ${thisWeekImages.map(imgRec => `
+                <div class="relative flex-shrink-0 group">
+                  <img 
+                    src="${imgRec.image}" 
+                    alt="打卡紀錄縮圖" 
+                    title="${formatPreciseDate(imgRec.timestamp)} 照片 (點擊放大)"
+                    onclick="openImagePreviewModal(this.src)" 
+                    class="w-12 h-12 object-cover rounded-xl border border-neutral-200/90 dark:border-neutral-800 shadow-sm hover:opacity-90 active:scale-95 transition cursor-pointer"
+                  />
+                  <span class="absolute bottom-0.5 right-0.5 px-1 py-0.2 rounded bg-black/65 backdrop-blur-sm text-[9px] font-mono text-white pointer-events-none">
+                    ${formatShortDate(imgRec.timestamp)}
+                  </span>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        }
+
         timelineNode.innerHTML = `
           ${lineHTML}
           ${dotHTML}
@@ -1774,9 +2089,11 @@
                     ${escapeHTML(latestNote)}
                   </div>
                 ` : ''}
+
+                ${homeImagesHTML}
               </div>
 
-              <div class="flex items-center gap-2 flex-shrink-0">
+              <div class="flex items-center gap-2 flex-shrink-0 self-start pt-0.5">
                 <button 
                   type="button"
                   title="點擊切換顯示累積次數與歷時"
@@ -1785,6 +2102,20 @@
                 >
                   <span id="badge-text-${activity.id}">${elapsed.text}</span>
                 </button>
+
+                <label 
+                  title="拍照或選取照片直接打卡"
+                  onclick="event.stopPropagation()"
+                  class="w-8 h-8 rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover:bg-neutral-900 hover:text-white dark:hover:bg-white dark:hover:text-neutral-950 transition flex items-center justify-center text-neutral-700 dark:text-neutral-300 active:scale-90 shadow-sm cursor-pointer"
+                >
+                  <i class="ph ph-camera text-sm font-bold"></i>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    class="hidden" 
+                    onchange="quickReLogWithImage(event, '${activity.id}')" 
+                  />
+                </label>
 
                 <button 
                   title="以當下時間再次記錄"
@@ -1838,7 +2169,7 @@
 
     function addNewCategory() {
       const input = document.getElementById('newCategoryInput');
-      const val = input.value.trim();
+      const val = input ? input.value.trim() : '';
       if (!val) return;
       if (categories.includes(val)) {
         showToast("該分類已存在");
@@ -2161,14 +2492,12 @@
 
         if (modalTouchHoldTimer) clearTimeout(modalTouchHoldTimer);
 
-        // 長按 220ms 判定為刻意拖曳，而非誤觸或一般滑動
         modalTouchHoldTimer = setTimeout(() => {
           modalIsTouchDragActive = true;
           modalTouchStartIndex = index;
           modalTouchDraggingEl = itemEl;
           itemEl.classList.add('opacity-60', 'ring-2', 'ring-blue-500', 'scale-[1.02]', 'shadow-lg');
 
-          // 支援震動回饋 (輕微震動告知已抓起)
           if (navigator.vibrate) {
             try { navigator.vibrate(30); } catch (_) {}
           }
@@ -2178,7 +2507,6 @@
       grip.addEventListener('touchmove', (e) => {
         const touch = e.touches[0];
 
-        // 若尚未達到長按時間就位移超過 8px，視為普通滾動清單，取消長按拖曳
         if (!modalIsTouchDragActive) {
           const dist = Math.hypot(touch.clientX - modalTouchStartPos.x, touch.clientY - modalTouchStartPos.y);
           if (dist > 8) {
@@ -2193,7 +2521,6 @@
         if (!modalTouchDraggingEl) return;
         e.preventDefault();
 
-        // Auto scroll inside modal container if near edges
         const containerRect = listContainer.getBoundingClientRect();
         if (touch.clientY < containerRect.top + 30) {
           listContainer.scrollTop -= 6;
@@ -2652,6 +2979,12 @@
                 const row = document.createElement('div');
                 row.className = "py-1.5 px-2.5 rounded-xl bg-white dark:bg-neutral-900/80 border border-neutral-100 dark:border-neutral-900 transition hover:border-neutral-300 dark:hover:border-neutral-700 space-y-0.5";
                 const cleanNote = (log.note || '').replace(/^[\s\u3000]+/, '').trim();
+                const imgThumbHTML = log.image ? `
+                  <div class="pt-1">
+                    <img src="${log.image}" alt="縮圖" onclick="openImagePreviewModal(this.src)" class="w-10 h-10 object-cover rounded-lg border border-neutral-200 dark:border-neutral-700 cursor-pointer shadow-sm hover:opacity-90 transition" />
+                  </div>
+                ` : '';
+
                 row.innerHTML = `
                   <div class="flex items-center justify-between gap-2 text-xs">
                     <div class="flex items-center gap-1.5 min-w-0">
@@ -2676,6 +3009,7 @@
                     </div>
                   </div>
                   ${cleanNote ? `<div class="w-full text-left pt-0.5"><p class="text-xs font-sans text-neutral-600 dark:text-neutral-400 whitespace-pre-line break-words leading-normal select-text m-0 p-0">${escapeHTML(cleanNote)}</p></div>` : ''}
+                  ${imgThumbHTML}
                 `;
                 focusedHistoryList.appendChild(row);
               });
@@ -2786,6 +3120,12 @@
             const row = document.createElement('div');
             row.className = "py-1.5 px-2.5 rounded-xl bg-white dark:bg-neutral-900/80 border border-neutral-100 dark:border-neutral-900 transition hover:border-neutral-300 dark:hover:border-neutral-700 space-y-0.5";
             const cleanNote = (log.note || '').replace(/^[\s\u3000]+/, '').trim();
+            const logImg = (activities.find(a => a.id === log.activityId)?.history || []).find(h => h.id === log.recordId)?.image;
+            const imgThumbHTML = logImg ? `
+              <div class="pt-1">
+                <img src="${logImg}" alt="縮圖" onclick="openImagePreviewModal(this.src)" class="w-10 h-10 object-cover rounded-lg border border-neutral-200 dark:border-neutral-700 cursor-pointer shadow-sm hover:opacity-90 transition" />
+              </div>
+            ` : '';
 
             row.innerHTML = `
               <div class="flex items-center justify-between gap-2 text-xs">
@@ -2812,6 +3152,7 @@
                 </div>
               </div>
               ${cleanNote ? `<div class="w-full text-left pt-0.5"><p class="text-xs font-sans text-neutral-600 dark:text-neutral-400 whitespace-pre-line break-words leading-normal select-text m-0 p-0">${escapeHTML(cleanNote)}</p></div>` : ''}
+              ${imgThumbHTML}
             `;
             groupBlock.appendChild(row);
           });
@@ -2835,13 +3176,42 @@
       const newRecord = {
         id: 'h-' + Date.now(),
         timestamp: Date.now(),
-        note: ''
+        note: '',
+        image: ''
       };
 
       activity.history.unshift(newRecord);
       saveData();
       refreshAll();
       showToast(`已更新「${activity.name}」打卡`);
+    }
+
+    async function quickReLogWithImage(e, activityId) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const activity = activities.find(a => a.id === activityId);
+      if (!activity) return;
+
+      try {
+        const thumbBase64 = await compressImageToThumbnail(file, 400, 0.65);
+        const newRecord = {
+          id: 'h-' + Date.now(),
+          timestamp: Date.now(),
+          note: '',
+          image: thumbBase64
+        };
+
+        activity.history.unshift(newRecord);
+        saveData();
+        refreshAll();
+        showToast(`已附圖打卡「${activity.name}」`);
+      } catch (err) {
+        console.error(err);
+        showToast("圖片上傳失敗", "ph-warning");
+      } finally {
+        e.target.value = '';
+      }
     }
 
     function requestDeleteSingleRecord(activityId, recordId) {
@@ -2903,13 +3273,13 @@
       headerDateEl.innerText = now.toLocaleDateString('zh-TW', options);
     }
 
-    // --- INITIALIZATION ---
-    window.addEventListener('DOMContentLoaded', () => {
+    // --- APPLICATION STARTUP LOGIC ---
+    function initApp() {
       loadData();
       updateHeaderDateDisplay();
       initSwipeGestures();
 
-      const savedTheme = localStorage.getItem(THEME_KEY);
+      const savedTheme = safeStorage.get(THEME_KEY);
       if (savedTheme === 'dark') {
         document.documentElement.classList.add('dark');
       } else {
@@ -2918,7 +3288,7 @@
 
       document.getElementById('themeToggleBtn')?.addEventListener('click', () => {
         const isDark = document.documentElement.classList.toggle('dark');
-        localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+        safeStorage.set(THEME_KEY, isDark ? 'dark' : 'light');
         renderReportView();
       });
 
@@ -3010,14 +3380,14 @@
               activities = imported.map(item => {
                 if (!item.categories) item.categories = item.category ? [item.category] : [];
                 if (typeof item.isArchived !== 'boolean') item.isArchived = false;
-                if (item.history) item.history = item.history.map(h => ({ ...h, note: h.note || '' }));
+                if (item.history) item.history = item.history.map(h => ({ ...h, note: h.note || '', image: h.image || '' }));
                 return item;
               });
             } else if (imported.activities && Array.isArray(imported.activities)) {
               activities = imported.activities.map(item => {
                 if (!item.categories) item.categories = item.category ? [item.category] : [];
                 if (typeof item.isArchived !== 'boolean') item.isArchived = false;
-                if (item.history) item.history = item.history.map(h => ({ ...h, note: h.note || '' }));
+                if (item.history) item.history = item.history.map(h => ({ ...h, note: h.note || '', image: h.image || '' }));
                 return item;
               });
               if (Array.isArray(imported.categories)) categories = imported.categories;
@@ -3038,9 +3408,14 @@
       });
 
       switchView('home');
-
       setInterval(updateHeaderDateDisplay, 60000);
-    });
+    }
+
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', initApp);
+    } else {
+      initApp();
+    }
   </script>
 </body>
 </html>
