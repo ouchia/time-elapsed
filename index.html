@@ -291,7 +291,7 @@
           <!-- Date Selected Details in Category/Item Mode -->
           <div id="reportCalDateDetailBox" class="hidden pt-2 border-t border-neutral-200/60 dark:border-neutral-800 space-y-1.5">
             <div class="flex items-center justify-between text-xs font-semibold">
-              <span id="reportCalDateDetailTitle" class="text-neutral-800 dark:text-neutral-200 font-mono">2026/11/09 紀錄</span>
+              <span id="reportCalDateDetailTitle" class="text-neutral-800 dark:text-neutral-200 font-mono">紀錄詳情</span>
               <span id="reportCalDateDetailBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">0 筆</span>
             </div>
             <div id="reportCalDateDetailList" class="space-y-1 max-h-48 overflow-y-auto no-scrollbar"></div>
@@ -520,11 +520,8 @@
             <i class="ph ph-x text-lg"></i>
           </button>
         </div>
-        <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
-          所有紀錄皆存放於本機 LocalStorage 中，無任何雲端上傳，支援完整離線運作。
-        </p>
 
-        <!-- 儲存容量用量視覺化卡片 -->
+        <!-- 儲存容量用量視覺化卡片 (IndexedDB & Storage Quota) -->
         <div class="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200/80 dark:border-neutral-700/80 space-y-1.5">
           <div class="flex items-center justify-between text-xs">
             <span class="text-neutral-500 dark:text-neutral-400 font-medium flex items-center gap-1.5">
@@ -538,7 +535,7 @@
             <div id="storageUsageBar" class="h-full bg-blue-600 dark:bg-blue-400 rounded-full transition-all duration-300" style="width: 0%;"></div>
           </div>
           <div class="flex justify-between text-[10px] text-neutral-400 font-mono">
-            <span>上限預估：5.0 MB</span>
+            <span id="storageQuotaText">裝置配額：計算中...</span>
             <span id="storageUsagePercent">0%</span>
           </div>
         </div>
@@ -571,56 +568,82 @@
 
   </div>
 
-  <!-- APPLICATION LOGIC -->
+  <!-- APPLICATION LOGIC WITH INDEXEDDB STORAGE -->
   <script>
-    // --- RESILIENT STORAGE HELPER (LOCAL STORAGE WITH IN-MEMORY BACKUP) ---
-    const inMemoryStorage = {};
-    const safeStorage = {
-      get(key) {
-        try {
-          if (window.localStorage) {
-            const val = window.localStorage.getItem(key);
-            if (val !== null) return val;
-          }
-        } catch (e) {
-          // sandbox or security block fallback
-        }
-        return inMemoryStorage[key] !== undefined ? inMemoryStorage[key] : null;
-      },
-      set(key, val) {
-        inMemoryStorage[key] = String(val);
-        try {
-          if (window.localStorage) {
-            window.localStorage.setItem(key, String(val));
-            return true;
-          }
-        } catch (e) {
-          // localStorage disabled in iframe or sandbox
-        }
-        return false;
-      },
-      remove(key) {
-        delete inMemoryStorage[key];
-        try {
-          if (window.localStorage) {
-            window.localStorage.removeItem(key);
-          }
-        } catch (e) {}
-      },
-      getAllKeys() {
-        const keys = new Set(Object.keys(inMemoryStorage));
-        try {
-          if (window.localStorage) {
-            for (let i = 0; i < window.localStorage.length; i++) {
-              keys.add(window.localStorage.key(i));
-            }
-          }
-        } catch (e) {}
-        return Array.from(keys);
-      }
-    };
+    // --- INDEXEDDB STORAGE LAYER WITH AUTOMATIC FALLBACK & MIGRATION ---
+    const DB_NAME = 'TimeElapsedDB';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'keyval';
 
-    // --- MAIN APP STATE & PERSISTENCE ---
+    const memoryFallback = {};
+
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        if (!window.indexedDB) {
+          return reject(new Error('IndexedDB not supported in this environment'));
+        }
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME);
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+    }
+
+    async function idbGet(key) {
+      try {
+        const db = await openDatabase();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const store = tx.objectStore(STORE_NAME);
+          const req = store.get(key);
+          req.onsuccess = () => resolve(req.result !== undefined ? req.result : null);
+          req.onerror = () => reject(req.error);
+        });
+      } catch (e) {
+        return memoryFallback[key] !== undefined ? memoryFallback[key] : null;
+      }
+    }
+
+    async function idbSet(key, value) {
+      memoryFallback[key] = value;
+      try {
+        const db = await openDatabase();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          const req = store.put(value, key);
+          req.onsuccess = () => resolve(true);
+          req.onerror = () => reject(req.error);
+        });
+      } catch (e) {
+        return false;
+      }
+    }
+
+    async function idbClear() {
+      for (const k of Object.keys(memoryFallback)) {
+        delete memoryFallback[k];
+      }
+      try {
+        const db = await openDatabase();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          const req = store.clear();
+          req.onsuccess = () => resolve(true);
+          req.onerror = () => reject(req.error);
+        });
+      } catch (e) {
+        return false;
+      }
+    }
+
+    // --- MAIN APP STATE ---
     const STORAGE_KEY = 'timeelapsed_activities_data_v2';
     const CATEGORIES_KEY = 'timeelapsed_categories_v2';
     const THEME_KEY = 'timeelapsed_theme_pref';
@@ -681,9 +704,7 @@
     // --- CLIENT-SIDE IMAGE COMPRESSION (THUMBNAIL GENERATOR) ---
     function compressImageToThumbnail(file, maxDimension = 400, quality = 0.65) {
       return new Promise((resolve, reject) => {
-        if (!file) {
-          return reject(new Error('未選取檔案'));
-        }
+        if (!file) return reject(new Error('未選取檔案'));
         const reader = new FileReader();
         reader.onerror = () => reject(new Error('讀取檔案失敗'));
         reader.onload = (e) => {
@@ -826,7 +847,17 @@
       container.addEventListener('touchstart', (e) => {
         if (e.touches.length !== 1) return;
         
-        if (e.target.closest('#homeCategoryTabs') || e.target.closest('input') || e.target.closest('textarea')) {
+        // 全域排除所有具備橫向滾動特性之容器、分類標籤列、河道照片列以及表單輸入欄位，避免滑動時誤觸換頁判定
+        if (
+          e.target.closest('.overflow-x-auto') ||
+          e.target.closest('.touch-pan-x') ||
+          e.target.closest('#reportCalCategoryTabs') ||
+          e.target.closest('#reportCatTabs') ||
+          e.target.closest('#homeCategoryTabs') ||
+          e.target.closest('input') ||
+          e.target.closest('textarea') ||
+          e.target.closest('select')
+        ) {
           startX = 0;
           startY = 0;
           return;
@@ -866,13 +897,35 @@
       }, { passive: true });
     }
 
-    function loadData() {
+    // --- DATA LOADING & AUTO-MIGRATION (LOCALSTORAGE -> INDEXEDDB) ---
+    async function loadData() {
       try {
-        const raw = safeStorage.get(STORAGE_KEY);
-        const rawCat = safeStorage.get(CATEGORIES_KEY);
-        if (raw !== null) {
-          const parsed = JSON.parse(raw);
-          activities = parsed.map(item => {
+        let idbActivities = await idbGet('activities');
+        let idbCategories = await idbGet('categories');
+
+        // 自動平滑遷移：若 IndexedDB 無資料但 LocalStorage 存在舊資料，自動轉移至 IndexedDB
+        if (!idbActivities) {
+          try {
+            const legacyRaw = localStorage.getItem(STORAGE_KEY);
+            if (legacyRaw) {
+              idbActivities = JSON.parse(legacyRaw);
+              await idbSet('activities', idbActivities);
+            }
+          } catch (e) {}
+        }
+
+        if (!idbCategories) {
+          try {
+            const legacyCat = localStorage.getItem(CATEGORIES_KEY);
+            if (legacyCat) {
+              idbCategories = JSON.parse(legacyCat);
+              await idbSet('categories', idbCategories);
+            }
+          } catch (e) {}
+        }
+
+        if (Array.isArray(idbActivities)) {
+          activities = idbActivities.map(item => {
             if (!item.categories) item.categories = item.category ? [item.category] : [];
             delete item.category;
             if (typeof item.isArchived !== 'boolean') item.isArchived = false;
@@ -883,35 +936,35 @@
           });
         } else {
           activities = [];
-          saveData();
+          await saveData();
         }
 
-        if (rawCat !== null) {
-          categories = JSON.parse(rawCat);
+        if (Array.isArray(idbCategories) && idbCategories.length > 0) {
+          categories = idbCategories;
         } else {
-          categories = DEFAULT_CATEGORIES;
-          saveCategories();
+          categories = [...DEFAULT_CATEGORIES];
+          await saveCategories();
         }
       } catch (e) {
-        console.error("Failed to load data", e);
+        console.error("載入資料失敗", e);
         activities = [];
-        categories = DEFAULT_CATEGORIES;
+        categories = [...DEFAULT_CATEGORIES];
       }
     }
 
-    function saveData() {
+    async function saveData() {
       try {
-        safeStorage.set(STORAGE_KEY, JSON.stringify(activities));
+        await idbSet('activities', activities);
       } catch (e) {
-        showToast("資料儲存容量已滿或失敗");
+        showToast("資料存入 IndexedDB 失敗", "ph-warning");
       }
     }
 
-    function saveCategories() {
+    async function saveCategories() {
       try {
-        safeStorage.set(CATEGORIES_KEY, JSON.stringify(categories));
+        await idbSet('categories', categories);
       } catch (e) {
-        showToast("分類儲存失敗");
+        showToast("分類存入 IndexedDB 失敗", "ph-warning");
       }
     }
 
@@ -1286,7 +1339,7 @@
         if (!rec) return;
 
         rec.image = thumbBase64;
-        saveData();
+        await saveData();
 
         const wrap = document.getElementById(`record-img-wrap-${recordId}`);
         if (wrap) {
@@ -1318,20 +1371,20 @@
       }
     }
 
-    function removeRecordImage(activityId, recordId) {
+    async function removeRecordImage(activityId, recordId) {
       const act = activities.find(a => a.id === activityId);
       if (!act) return;
       const rec = (act.history || []).find(r => r.id === recordId);
       if (!rec) return;
 
       rec.image = '';
-      saveData();
+      await saveData();
       const wrap = document.getElementById(`record-img-wrap-${recordId}`);
       if (wrap) wrap.innerHTML = '';
       showToast("已移除縮圖");
     }
 
-    function toggleRecordEditState(activityId, recordId) {
+    async function toggleRecordEditState(activityId, recordId) {
       const input = document.getElementById(`note-input-${recordId}`);
       const btn = document.getElementById(`note-action-btn-${recordId}`);
       const timeDisplay = document.getElementById(`time-display-${recordId}`);
@@ -1379,7 +1432,7 @@
 
         rec.note = input.value.trim();
         act.history.sort((a, b) => b.timestamp - a.timestamp);
-        saveData();
+        await saveData();
 
         input.setAttribute('readonly', 'true');
         input.className = "flex-1 text-xs py-1 px-1 rounded-xl bg-transparent text-neutral-700 dark:text-neutral-300 border-none outline-none shadow-none cursor-default select-none resize-none leading-relaxed transition whitespace-pre-wrap break-words";
@@ -1403,7 +1456,7 @@
       }
     }
 
-    function submitModalDayBacklog(activityId, year, month, day) {
+    async function submitModalDayBacklog(activityId, year, month, day) {
       const timeInput = document.getElementById('modal-backlog-time');
       const noteInput = document.getElementById('modal-backlog-note');
       const timeVal = timeInput ? timeInput.value : '12:00';
@@ -1424,7 +1477,7 @@
 
       activity.history.push(newRecord);
       activity.history.sort((a,b) => b.timestamp - a.timestamp);
-      saveData();
+      await saveData();
       
       modalBacklogImage = '';
       
@@ -1447,11 +1500,11 @@
     }
 
     function confirmDeleteRecordFromModal(activityId, recordId) {
-      triggerConfirm('刪除單筆紀錄', '確定要刪除這筆歷史紀錄嗎？', () => {
+      triggerConfirm('刪除單筆紀錄', '確定要刪除這筆歷史紀錄嗎？', async () => {
         const act = activities.find(a => a.id === activityId);
         if (!act) return;
         act.history = act.history.filter(r => r.id !== recordId);
-        saveData();
+        await saveData();
         closeDateActionModal();
         refreshAll();
         showToast("已刪除紀錄");
@@ -1509,7 +1562,7 @@
       });
     }
 
-    function toggleCategoryFromModal(activityId, catName) {
+    async function toggleCategoryFromModal(activityId, catName) {
       const act = activities.find(a => a.id === activityId);
       if (!act) return;
       if (!Array.isArray(act.categories)) act.categories = [];
@@ -1519,7 +1572,7 @@
       } else {
         act.categories.push(catName);
       }
-      saveData();
+      await saveData();
       renderItemCategoryModalChips();
       
       const homeSearch = document.getElementById('homeSearchInput')?.value || '';
@@ -1527,19 +1580,19 @@
       renderHomeView(homeSearch);
     }
 
-    function addCategoryFromModal() {
+    async function addCategoryFromModal() {
       const input = document.getElementById('catModalNewInput');
       const val = input ? input.value.trim() : '';
       if (!val) return;
       if (!categories.includes(val)) {
         categories.push(val);
-        saveCategories();
+        await saveCategories();
       }
       if (activeCatModalActivityId) {
         const act = activities.find(a => a.id === activeCatModalActivityId);
         if (act && !(act.categories || []).includes(val)) {
           act.categories.push(val);
-          saveData();
+          await saveData();
         }
       }
       if (input) input.value = '';
@@ -1599,7 +1652,7 @@
       document.getElementById('editNameModal').classList.add('hidden');
     }
 
-    function submitEditName() {
+    async function submitEditName() {
       const input = document.getElementById('editNameInput');
       const newName = input ? input.value.trim() : '';
       if (!newName) {
@@ -1624,7 +1677,7 @@
 
         const oldName = act.name;
         act.name = newName;
-        saveData();
+        await saveData();
         closeEditNameModal();
         refreshAll();
         showToast(`已將「${oldName}」重新命名為「${newName}」`);
@@ -1644,7 +1697,7 @@
         const catIndex = categories.indexOf(oldCatName);
         if (catIndex >= 0) {
           categories[catIndex] = newName;
-          saveCategories();
+          await saveCategories();
         }
 
         activities.forEach(act => {
@@ -1655,7 +1708,7 @@
             }
           }
         });
-        saveData();
+        await saveData();
 
         if (selectedHomeCategory === oldCatName) {
           selectedHomeCategory = newName;
@@ -1791,7 +1844,7 @@
       renderHomeView(document.getElementById('homeSearchInput')?.value || '');
     }
 
-    function createItemFromQueryDirect(name) {
+    async function createItemFromQueryDirect(name) {
       const clean = name.trim();
       if (!clean) return;
 
@@ -1816,7 +1869,7 @@
       };
 
       activities.unshift(newAct);
-      saveData();
+      await saveData();
       const input = document.getElementById('homeSearchInput');
       if (input) input.value = '';
       refreshAll();
@@ -1852,11 +1905,11 @@
       });
     }
 
-    function toggleArchiveActivity(activityId) {
+    async function toggleArchiveActivity(activityId) {
       const act = activities.find(a => a.id === activityId);
       if (!act) return;
       act.isArchived = !act.isArchived;
-      saveData();
+      await saveData();
       refreshAll();
       showToast(act.isArchived ? `已封存「${act.name}」` : `已取消封存「${act.name}」`);
     }
@@ -2038,7 +2091,7 @@
         let homeImagesHTML = '';
         if (thisWeekImages.length > 0) {
           homeImagesHTML = `
-            <div class="mt-2 flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5" onclick="event.stopPropagation()">
+            <div class="mt-2 flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 touch-pan-x" onclick="event.stopPropagation()">
               ${thisWeekImages.map(imgRec => `
                 <div class="relative flex-shrink-0 group">
                   <img 
@@ -2159,7 +2212,7 @@
       }
     }
 
-    function addNewCategory() {
+    async function addNewCategory() {
       const input = document.getElementById('newCategoryInput');
       const val = input ? input.value.trim() : '';
       if (!val) return;
@@ -2168,7 +2221,7 @@
         return;
       }
       categories.push(val);
-      saveCategories();
+      await saveCategories();
       input.value = '';
       refreshAll();
       showToast(`已建立分類「${val}」`);
@@ -2550,11 +2603,11 @@
       grip.addEventListener('touchcancel', finishTouch);
     }
 
-    function applyCategoryReorder(fromIndex, toIndex, reRender = true) {
+    async function applyCategoryReorder(fromIndex, toIndex, reRender = true) {
       if (fromIndex < 0 || fromIndex >= categories.length || toIndex < 0 || toIndex >= categories.length) return;
       const [moved] = categories.splice(fromIndex, 1);
       categories.splice(toIndex, 0, moved);
-      saveCategories();
+      await saveCategories();
       if (reRender) {
         renderCategorySortModalList();
         renderDictionaryView(document.getElementById('dictSearchInput')?.value || '');
@@ -2564,7 +2617,7 @@
     }
 
     function requestDeleteCategory(catName) {
-      triggerConfirm('刪除分類', `確定要刪除「${catName}」分類嗎？相關事項不會被刪除，僅會移除此分類標籤。`, () => {
+      triggerConfirm('刪除分類', `確定要刪除「${catName}」分類嗎？相關事項不會被刪除，僅會移除此分類標籤。`, async () => {
         categories = categories.filter(c => c !== catName);
         activities.forEach(a => {
           if (Array.isArray(a.categories)) {
@@ -2572,8 +2625,8 @@
           }
         });
         if (selectedHomeCategory === catName) selectedHomeCategory = 'ALL';
-        saveCategories();
-        saveData();
+        await saveCategories();
+        await saveData();
         refreshAll();
         showToast("分類已刪除");
       });
@@ -3287,7 +3340,7 @@
       }
     }
 
-    function quickReLog(activityId) {
+    async function quickReLog(activityId) {
       const activity = activities.find(a => a.id === activityId);
       if (!activity) return;
 
@@ -3299,7 +3352,7 @@
       };
 
       activity.history.unshift(newRecord);
-      saveData();
+      await saveData();
       refreshAll();
       showToast(`已更新「${activity.name}」打卡`);
     }
@@ -3321,7 +3374,7 @@
         };
 
         activity.history.unshift(newRecord);
-        saveData();
+        await saveData();
         refreshAll();
         showToast(`已附圖打卡「${activity.name}」`);
       } catch (err) {
@@ -3335,9 +3388,9 @@
     function requestDeleteSingleRecord(activityId, recordId) {
       const act = activities.find(a => a.id === activityId);
       if (!act) return;
-      triggerConfirm('刪除單筆紀錄', `確定要刪除「${act.name}」的這筆歷史紀錄嗎？`, () => {
+      triggerConfirm('刪除單筆紀錄', `確定要刪除「${act.name}」的這筆歷史紀錄嗎？`, async () => {
         act.history = act.history.filter(r => r.id !== recordId);
-        saveData();
+        await saveData();
         refreshAll();
         showToast("已刪除紀錄");
       });
@@ -3346,11 +3399,11 @@
     function requestDeleteActivity(activityId) {
       const act = activities.find(a => a.id === activityId);
       if (!act) return;
-      triggerConfirm('刪除整個事項', `確定要將「${act.name}」及其所有歷史紀錄全部刪除嗎？`, () => {
+      triggerConfirm('刪除整個事項', `確定要將「${act.name}」及其所有歷史紀錄全部刪除嗎？`, async () => {
         activities = activities.filter(a => a.id !== activityId);
         if (expandedItemId === activityId) expandedItemId = null;
         if (focusedHeatmapActivityId === activityId) focusedHeatmapActivityId = null;
-        saveData();
+        await saveData();
         refreshAll();
         showToast(`已刪除「${act.name}」`);
       });
@@ -3366,39 +3419,52 @@
       updateStorageUsageUI();
     }
 
-    // --- LOCAL STORAGE USAGE CALCULATION ---
-    function getStorageUsage() {
-      let totalBytes = 0;
-      try {
-        const keys = safeStorage.getAllKeys();
-        keys.forEach(key => {
-          const val = safeStorage.get(key) || '';
-          totalBytes += (key.length + val.length) * 2;
-        });
-      } catch (e) {
-        console.warn('容量計算例外:', e);
+    // --- ACCURATE STORAGE USAGE CALCULATION (ESTIMATE & INDEXEDDB) ---
+    async function getStorageUsage() {
+      let usedBytes = 0;
+      let quotaBytes = 0;
+
+      if (navigator.storage && navigator.storage.estimate) {
+        try {
+          const estimate = await navigator.storage.estimate();
+          usedBytes = estimate.usage || 0;
+          quotaBytes = estimate.quota || 0;
+        } catch (e) {
+          console.warn('Storage estimate failed', e);
+        }
       }
 
-      const usedKB = (totalBytes / 1024).toFixed(1);
-      const usedMB = (totalBytes / (1024 * 1024)).toFixed(2);
-      const maxMB = 5.0;
-      const percent = Math.min(100, (totalBytes / (maxMB * 1024 * 1024)) * 100).toFixed(1);
+      // 備援計算
+      if (usedBytes === 0) {
+        try {
+          const serialized = JSON.stringify(activities) + JSON.stringify(categories);
+          usedBytes = serialized.length * 2;
+          quotaBytes = 50 * 1024 * 1024;
+        } catch (e) {}
+      }
 
-      return { totalBytes, usedKB, usedMB, percent };
+      const usedKB = (usedBytes / 1024).toFixed(1);
+      const usedMB = (usedBytes / (1024 * 1024)).toFixed(2);
+      const quotaMB = quotaBytes > 0 ? (quotaBytes / (1024 * 1024)).toFixed(0) : '未限制';
+      const percent = quotaBytes > 0 ? Math.min(100, (usedBytes / quotaBytes) * 100).toFixed(2) : '0';
+
+      return { usedBytes, usedKB, usedMB, quotaMB, percent };
     }
 
-    function updateStorageUsageUI() {
+    async function updateStorageUsageUI() {
       const textEl = document.getElementById('storageUsageText');
       const barEl = document.getElementById('storageUsageBar');
       const percentEl = document.getElementById('storageUsagePercent');
+      const quotaEl = document.getElementById('storageQuotaText');
       if (!textEl || !barEl || !percentEl) return;
 
-      const { usedKB, usedMB, percent } = getStorageUsage();
+      const { usedKB, usedMB, quotaMB, percent } = await getStorageUsage();
       const displaySize = parseFloat(usedMB) >= 1.0 ? `${usedMB} MB` : `${usedKB} KB`;
 
-      textEl.innerText = `${displaySize} / 5 MB`;
+      textEl.innerText = `${displaySize} (IndexedDB)`;
       percentEl.innerText = `${percent}%`;
-      barEl.style.width = `${percent}%`;
+      barEl.style.width = `${Math.max(1, parseFloat(percent))}%`;
+      if (quotaEl) quotaEl.innerText = `裝置配額：~${quotaMB} MB`;
 
       if (parseFloat(percent) >= 80) {
         barEl.className = 'h-full bg-red-500 rounded-full transition-all duration-300';
@@ -3413,23 +3479,26 @@
     }
 
     function requestClearAllData() {
+      closeBackupModal();
       triggerConfirm(
         '清除所有資料',
-        '確定要清除所有追蹤事項、歷史紀錄與縮圖照片嗎？此操作無法復原，建議先匯出備份！',
-        () => {
-          safeStorage.remove(STORAGE_KEY);
-          safeStorage.remove(CATEGORIES_KEY);
+        '確定要清除 IndexedDB 中的所有追蹤事項、歷史紀錄與縮圖照片嗎？此操作無法復原，建議先匯出備份！',
+        async () => {
+          await idbClear();
+          try {
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(CATEGORIES_KEY);
+          } catch (e) {}
 
           activities = [];
           categories = [...DEFAULT_CATEGORIES];
           expandedItemId = null;
           focusedHeatmapActivityId = null;
 
-          saveData();
-          saveCategories();
+          await saveData();
+          await saveCategories();
           refreshAll();
-          closeBackupModal();
-          showToast('已清除所有資料並重置', 'ph-trash');
+          showToast('已清空 IndexedDB 資料庫並重置', 'ph-trash');
         }
       );
     }
@@ -3461,12 +3530,16 @@
     }
 
     // --- APPLICATION STARTUP LOGIC ---
-    function initApp() {
-      loadData();
+    async function initApp() {
+      await loadData();
       updateHeaderDateDisplay();
       initSwipeGestures();
 
-      const savedTheme = safeStorage.get(THEME_KEY);
+      let savedTheme = null;
+      try {
+        savedTheme = localStorage.getItem(THEME_KEY);
+      } catch (e) {}
+
       if (savedTheme === 'dark') {
         document.documentElement.classList.add('dark');
       } else {
@@ -3475,7 +3548,9 @@
 
       document.getElementById('themeToggleBtn')?.addEventListener('click', () => {
         const isDark = document.documentElement.classList.toggle('dark');
-        safeStorage.set(THEME_KEY, isDark ? 'dark' : 'light');
+        try {
+          localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+        } catch (e) {}
         renderReportView();
       });
 
@@ -3548,7 +3623,7 @@
       document.getElementById('clearAllDataBtn')?.addEventListener('click', requestClearAllData);
 
       document.getElementById('exportDataBtn')?.addEventListener('click', () => {
-        const exportPayload = { activities, categories, version: '2.5' };
+        const exportPayload = { activities, categories, version: '3.0 (IndexedDB)' };
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
         const downloadAnchor = document.createElement('a');
         downloadAnchor.setAttribute("href", dataStr);
@@ -3564,7 +3639,7 @@
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
           try {
             const imported = JSON.parse(event.target.result);
             if (Array.isArray(imported)) {
@@ -3586,8 +3661,8 @@
               showToast("格式錯誤，無法匯入", "ph-x-circle");
               return;
             }
-            saveData();
-            saveCategories();
+            await saveData();
+            await saveCategories();
             refreshAll();
             updateStorageUsageUI();
             closeBackupModal();
