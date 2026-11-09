@@ -247,39 +247,55 @@
             <span class="text-xs font-medium text-neutral-500 dark:text-neutral-400" id="periodRangeLabel">區間統計</span>
             <span class="text-xs font-mono font-bold text-neutral-900 dark:text-neutral-100" id="periodTotalCount">0 次操作</span>
           </div>
-          <p class="text-[11px] text-neutral-400">點擊下方項目可將熱力月曆切換至該項目的獨立活動分佈</p>
+          <p class="text-[11px] text-neutral-400">點擊下方項目可將月曆切換至該項目的月曆檢視</p>
           <div class="space-y-1.5" id="periodItemsBarList"></div>
         </div>
 
-        <!-- Dynamic Focused Heatmap Calendar Container -->
-        <div class="p-3 bg-neutral-50 dark:bg-neutral-900/60 rounded-2xl border border-neutral-200/70 dark:border-neutral-800 space-y-2">
+        <!-- Filterable Calendar (By Category / By Item) without Heatmap -->
+        <div class="p-3 bg-neutral-50 dark:bg-neutral-900/60 rounded-2xl border border-neutral-200/70 dark:border-neutral-800 space-y-2.5">
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5 text-xs font-bold text-neutral-800 dark:text-neutral-200">
-              <i class="ph ph-calendar-blank text-neutral-500"></i>
-              <span>熱力月曆：</span>
-              <span id="calendarFocusItemLabel" class="font-bold text-neutral-950 dark:text-white px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-[11px]">全域總覽</span>
+            <div class="inline-flex bg-neutral-200/80 dark:bg-neutral-800 p-0.5 rounded-lg text-xs font-semibold">
+              <button 
+                id="calModeCategoryBtn" 
+                onclick="switchReportCalendarMode('category')" 
+                class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white shadow-xs transition"
+              >
+                依分類月曆
+              </button>
+              <button 
+                id="calModeItemBtn" 
+                onclick="switchReportCalendarMode('item')" 
+                class="px-2.5 py-1 rounded-md text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition"
+              >
+                依項目月曆
+              </button>
             </div>
-            <button 
-              id="resetCalendarFocusBtn" 
-              onclick="setHeatmapFocusActivity(null)" 
-              class="hidden text-[10px] px-2 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 font-semibold hover:bg-neutral-300"
-            >
-              看全域
-            </button>
+            <div id="calFocusItemBadgeContainer" class="hidden items-center gap-1">
+              <span id="calendarFocusItemLabel" class="font-bold text-neutral-950 dark:text-white px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-[11px] truncate max-w-[100px]">未鎖定</span>
+              <button 
+                id="resetCalendarFocusBtn" 
+                onclick="setReportCalendarFocusItem(null)" 
+                class="text-[10px] px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 font-semibold hover:bg-neutral-300"
+              >
+                重設
+              </button>
+            </div>
           </div>
-          <div id="reportCalendarContainer" class="space-y-1"></div>
-        </div>
 
-        <!-- Focused Item History Log Section -->
-        <div id="focusedHistorySection" class="p-3 bg-neutral-50 dark:bg-neutral-900/60 rounded-2xl border border-neutral-200/70 dark:border-neutral-800 space-y-2">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5 text-xs font-bold text-neutral-800 dark:text-neutral-200">
-              <i class="ph ph-clock-counter-clockwise text-neutral-500"></i>
-              <span id="focusedHistoryTitle">鎖定項目的歷史明細</span>
+          <!-- Category Selector Tabs (Visible in Category Mode) -->
+          <div id="reportCalCategoryTabs" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-xs select-none touch-pan-x"></div>
+
+          <!-- Calendar Display -->
+          <div id="reportCalendarContainer" class="space-y-1"></div>
+
+          <!-- Date Selected Details in Category/Item Mode -->
+          <div id="reportCalDateDetailBox" class="hidden pt-2 border-t border-neutral-200/60 dark:border-neutral-800 space-y-1.5">
+            <div class="flex items-center justify-between text-xs font-semibold">
+              <span id="reportCalDateDetailTitle" class="text-neutral-800 dark:text-neutral-200 font-mono">2026/11/09 紀錄</span>
+              <span id="reportCalDateDetailBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">0 筆</span>
             </div>
-            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-200/80 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300" id="focusedHistoryCountBadge">未鎖定</span>
+            <div id="reportCalDateDetailList" class="space-y-1 max-h-48 overflow-y-auto no-scrollbar"></div>
           </div>
-          <div id="focusedHistoryList" class="space-y-1 max-h-60 overflow-y-auto no-scrollbar"></div>
         </div>
 
         <!-- Dynamic Period-Bound Rankings Switcher -->
@@ -307,19 +323,29 @@
           <div id="reportDynamicRankList" class="space-y-1.5"></div>
         </div>
 
-        <!-- Overdue alerts block -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5 text-neutral-800 dark:text-neutral-200 font-bold text-xs tracking-wider uppercase">
-              <i class="ph ph-clock-afternoon text-sm"></i>
-              <span>可能已逾期事項</span>
+        <!-- Overdue alerts block (Collapsible Accordion - Default Closed) -->
+        <div class="rounded-2xl border border-neutral-200/80 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/60 overflow-hidden">
+          <button 
+            id="toggleOverdueAccordionBtn" 
+            onclick="toggleOverdueAccordion()"
+            class="w-full flex items-center justify-between p-3 text-left hover:bg-neutral-100/60 dark:hover:bg-neutral-800/40 transition"
+          >
+            <div class="flex items-center gap-2">
+              <i class="ph ph-clock-afternoon text-base text-neutral-600 dark:text-neutral-400"></i>
+              <span class="text-xs font-bold text-neutral-900 dark:text-neutral-100 uppercase tracking-wider">可能已逾期事項</span>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold" id="overdueCountBadge">0</span>
             </div>
-            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold" id="overdueCountBadge">0</span>
+            <div class="flex items-center gap-1 text-[11px] text-neutral-400">
+              <span id="overdueAccordionLabel">展開</span>
+              <i class="ph ph-caret-down transition-transform duration-200" id="overdueAccordionCaret"></i>
+            </div>
+          </button>
+          <div id="overdueAccordionContainer" class="p-3 pt-0 space-y-2 hidden border-t border-neutral-100 dark:border-neutral-850">
+            <div id="overdueList" class="space-y-1.5 pt-2"></div>
           </div>
-          <div id="overdueList" class="space-y-1.5"></div>
         </div>
 
-        <!-- Collapsible Global History Log Section -->
+        <!-- Collapsible Global History Log Section with Date Jumper -->
         <div class="pt-2 border-t border-neutral-100 dark:border-neutral-900">
           <button 
             id="toggleHistoryAccordionBtn" 
@@ -337,8 +363,21 @@
             </div>
           </button>
           
-          <div id="reportHistoryLogContainer" class="space-y-1 pt-1 hidden">
-            <div id="reportHistoryLogList" class="space-y-1 max-h-80 overflow-y-auto no-scrollbar"></div>
+          <div id="reportHistoryLogContainer" class="space-y-2 pt-1 hidden">
+            <!-- Date Jump Control -->
+            <div class="flex items-center justify-between p-2 rounded-xl bg-neutral-100 dark:bg-neutral-900 text-xs">
+              <span class="text-neutral-500 dark:text-neutral-400 font-medium flex items-center gap-1">
+                <i class="ph ph-crosshair text-sm"></i>
+                <span>跳轉至指定日期</span>
+              </span>
+              <input 
+                type="date" 
+                id="historyJumpDatePicker" 
+                class="bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 text-xs px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 focus:outline-none font-mono"
+                onchange="jumpToHistoryDate(this.value)"
+              />
+            </div>
+            <div id="reportHistoryLogList" class="space-y-1.5 max-h-80 overflow-y-auto no-scrollbar scroll-smooth"></div>
           </div>
         </div>
       </section>
@@ -477,13 +516,33 @@
       <div class="w-full max-w-sm bg-white dark:bg-neutral-900 rounded-2xl p-5 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-4">
         <div class="flex items-center justify-between">
           <h3 class="font-bold text-sm text-neutral-900 dark:text-white">資料管理與備份</h3>
-          <button id="closeBackupModalBtn" class="p-1 rounded-full text-neutral-400">
+          <button id="closeBackupModalBtn" class="p-1 rounded-full text-neutral-400 hover:text-neutral-600">
             <i class="ph ph-x text-lg"></i>
           </button>
         </div>
         <p class="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed">
           所有紀錄皆存放於本機 LocalStorage 中，無任何雲端上傳，支援完整離線運作。
         </p>
+
+        <!-- 儲存容量用量視覺化卡片 -->
+        <div class="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200/80 dark:border-neutral-700/80 space-y-1.5">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-neutral-500 dark:text-neutral-400 font-medium flex items-center gap-1.5">
+              <i class="ph ph-database text-sm"></i>
+              <span>儲存容量用量</span>
+            </span>
+            <span id="storageUsageText" class="font-mono font-bold text-neutral-800 dark:text-neutral-200">計算中...</span>
+          </div>
+          <!-- 進度條 -->
+          <div class="w-full h-1.5 rounded-full bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
+            <div id="storageUsageBar" class="h-full bg-blue-600 dark:bg-blue-400 rounded-full transition-all duration-300" style="width: 0%;"></div>
+          </div>
+          <div class="flex justify-between text-[10px] text-neutral-400 font-mono">
+            <span>上限預估：5.0 MB</span>
+            <span id="storageUsagePercent">0%</span>
+          </div>
+        </div>
+
         <div class="space-y-2 pt-1 border-t border-neutral-100 dark:border-neutral-800">
           <button id="exportDataBtn" class="w-full py-2.5 px-4 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition">
             <i class="ph ph-download-simple text-base"></i>
@@ -495,6 +554,11 @@
             <span>匯入備份檔案</span>
             <input type="file" id="importFileInput" accept=".json" class="hidden" />
           </label>
+
+          <button id="clearAllDataBtn" class="w-full py-2 px-4 rounded-xl border border-red-200 dark:border-red-950 bg-red-50/60 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-98">
+            <i class="ph ph-trash text-sm"></i>
+            <span>一鍵清除所有資料</span>
+          </button>
         </div>
       </div>
     </div>
@@ -509,121 +573,52 @@
 
   <!-- APPLICATION LOGIC -->
   <script>
-    // --- SAFE LOCAL STORAGE HELPER (PREVENTS SANDBOX & COOKIE BLOCKS) ---
+    // --- RESILIENT STORAGE HELPER (LOCAL STORAGE WITH IN-MEMORY BACKUP) ---
+    const inMemoryStorage = {};
     const safeStorage = {
       get(key) {
         try {
-          return localStorage.getItem(key);
+          if (window.localStorage) {
+            const val = window.localStorage.getItem(key);
+            if (val !== null) return val;
+          }
         } catch (e) {
-          console.warn('Storage get restricted:', e);
-          return null;
+          // sandbox or security block fallback
         }
+        return inMemoryStorage[key] !== undefined ? inMemoryStorage[key] : null;
       },
       set(key, val) {
+        inMemoryStorage[key] = String(val);
         try {
-          localStorage.setItem(key, val);
-          return true;
+          if (window.localStorage) {
+            window.localStorage.setItem(key, String(val));
+            return true;
+          }
         } catch (e) {
-          console.warn('Storage set restricted:', e);
-          return false;
+          // localStorage disabled in iframe or sandbox
         }
+        return false;
+      },
+      remove(key) {
+        delete inMemoryStorage[key];
+        try {
+          if (window.localStorage) {
+            window.localStorage.removeItem(key);
+          }
+        } catch (e) {}
+      },
+      getAllKeys() {
+        const keys = new Set(Object.keys(inMemoryStorage));
+        try {
+          if (window.localStorage) {
+            for (let i = 0; i < window.localStorage.length; i++) {
+              keys.add(window.localStorage.key(i));
+            }
+          }
+        } catch (e) {}
+        return Array.from(keys);
       }
     };
-
-    // --- PWA ASSETS & SERVICE WORKER INJECTION ---
-    (function setupPWAInstallation() {
-      try {
-        const svgIconData = `data:image/svg+xml;charset=utf-8,` + encodeURIComponent(`
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-            <rect width="512" height="512" rx="112" fill="#0a0a0a"/>
-            <circle cx="256" cy="256" r="160" stroke="#f5f5f5" stroke-width="24" fill="none"/>
-            <polyline points="256,152 256,256 328,296" stroke="#3b82f6" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            <circle cx="256" cy="256" r="12" fill="#3b82f6"/>
-          </svg>
-        `.trim());
-
-        let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
-        if (!appleIcon) {
-          appleIcon = document.createElement('link');
-          appleIcon.rel = 'apple-touch-icon';
-          document.head.appendChild(appleIcon);
-        }
-        appleIcon.href = svgIconData;
-
-        let favicon = document.querySelector('link[rel="icon"]');
-        if (!favicon) {
-          favicon = document.createElement('link');
-          favicon.rel = 'icon';
-          document.head.appendChild(favicon);
-        }
-        favicon.href = svgIconData;
-
-        const manifest = {
-          name: "歷時 - TimeElapsed 極簡生活計時器",
-          short_name: "歷時",
-          description: "紀錄生活瑣事的歷時與規律",
-          start_url: window.location.href,
-          scope: window.location.pathname,
-          display: "standalone",
-          orientation: "portrait",
-          background_color: "#0a0a0a",
-          theme_color: "#0a0a0a",
-          icons: [
-            {
-              src: svgIconData,
-              sizes: "192x192",
-              type: "image/svg+xml",
-              purpose: "any maskable"
-            },
-            {
-              src: svgIconData,
-              sizes: "512x512",
-              type: "image/svg+xml",
-              purpose: "any maskable"
-            }
-          ]
-        };
-
-        const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
-        const manifestUrl = URL.createObjectURL(manifestBlob);
-
-        let manifestLink = document.querySelector('link[rel="manifest"]');
-        if (!manifestLink) {
-          manifestLink = document.createElement('link');
-          manifestLink.rel = 'manifest';
-          document.head.appendChild(manifestLink);
-        }
-        manifestLink.href = manifestUrl;
-
-        if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-          const swScript = `
-            const CACHE_NAME = 'timeelapsed-pwa-v1';
-            self.addEventListener('install', (e) => {
-              self.skipWaiting();
-            });
-            self.addEventListener('activate', (e) => {
-              e.waitUntil(self.clients.claim());
-            });
-            self.addEventListener('fetch', (e) => {
-              e.respondWith(
-                caches.match(e.request).then((res) => {
-                  return res || fetch(e.request).catch(() => caches.match(e.request));
-                })
-              );
-            });
-          `;
-          const swBlob = new Blob([swScript], { type: 'application/javascript' });
-          const swUrl = URL.createObjectURL(swBlob);
-
-          navigator.serviceWorker.register(swUrl)
-            .catch(err => {
-              console.warn('Service worker setup note:', err);
-            });
-        }
-      } catch (err) {
-        console.warn('PWA initialization non-fatal warning:', err);
-      }
-    })();
 
     // --- MAIN APP STATE & PERSISTENCE ---
     const STORAGE_KEY = 'timeelapsed_activities_data_v2';
@@ -644,6 +639,10 @@
     let reportPeriod = 'day'; 
     let reportRankMode = 'frequency'; 
     let isHistoryLogExpanded = false;
+    let isOverdueExpanded = false;
+    let reportCalMode = 'category'; // 'category' | 'item'
+    let reportSelectedCalCategory = 'ALL';
+    let reportCalSelectedDateKey = null; // 'YYYY/MM/DD'
     let pendingConfirmAction = null;
     let isNavMenuOpen = false;
     let activeCatModalActivityId = null;
@@ -656,7 +655,6 @@
     let modalAutoScrollTimer = null;
     let modalBacklogImage = '';
 
-    // Edit Name Modal State
     let editNameState = {
       type: null,
       id: null
@@ -895,9 +893,9 @@
           saveCategories();
         }
       } catch (e) {
-        console.error("Failed to load local data", e);
+        console.error("Failed to load data", e);
         activities = [];
-        categories = [];
+        categories = DEFAULT_CATEGORIES;
       }
     }
 
@@ -905,7 +903,7 @@
       try {
         safeStorage.set(STORAGE_KEY, JSON.stringify(activities));
       } catch (e) {
-        showToast("地端儲存容量已滿或失敗");
+        showToast("資料儲存容量已滿或失敗");
       }
     }
 
@@ -1104,7 +1102,6 @@
       listEl.innerHTML = '';
       modalBacklogImage = '';
 
-      // 1. 若該日已有紀錄，優先列出歷史明細以供檢視與修改
       if (matchingRecords.length > 0) {
         const recordsHeader = document.createElement('div');
         recordsHeader.className = "text-[11px] font-bold text-neutral-400 uppercase tracking-wider flex items-center justify-between px-0.5";
@@ -1198,7 +1195,7 @@
         });
       }
 
-      // 2. 常駐補登模組（即便已有紀錄，亦永遠出現在下方供追加補登）
+      // 常駐補登模組
       const now = new Date();
       const defaultTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
       
@@ -1351,7 +1348,6 @@
       const isReadOnly = input.hasAttribute('readonly');
 
       if (isReadOnly) {
-        // Switch to EDIT MODE
         input.removeAttribute('readonly');
         input.placeholder = "輸入備註內容...";
         input.className = "flex-1 text-xs px-2.5 py-1.5 rounded-xl bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 resize-none leading-relaxed transition";
@@ -1372,7 +1368,6 @@
         btn.className = "px-3.5 py-1.5 bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-bold rounded-xl transition whitespace-nowrap shadow-xs flex-shrink-0 mt-0.5";
         input.focus();
       } else {
-        // SAVE and LOCK
         if (timeInput && timeInput.value) {
           const [newHours, newMinutes] = timeInput.value.split(':').map(Number);
           const curDate = new Date(rec.timestamp);
@@ -1386,7 +1381,6 @@
         act.history.sort((a, b) => b.timestamp - a.timestamp);
         saveData();
 
-        // Switch back to LOCKED MODE
         input.setAttribute('readonly', 'true');
         input.className = "flex-1 text-xs py-1 px-1 rounded-xl bg-transparent text-neutral-700 dark:text-neutral-300 border-none outline-none shadow-none cursor-default select-none resize-none leading-relaxed transition whitespace-pre-wrap break-words";
         autoResizeTextarea(input);
@@ -1442,7 +1436,6 @@
       renderReportView();
 
       openDateActionModal(activityId, year, month, day);
-
       showToast(`已補登「${activity.name}」紀錄`);
     }
 
@@ -1981,7 +1974,7 @@
         const latestRecord = activity.history && activity.history.length > 0 ? activity.history[0] : null;
         const latestNote = latestRecord && latestRecord.note ? latestRecord.note.trim() : '';
 
-        // 取出「本週內（週一~週日）」所有帶圖紀錄，並依時間由新至舊排序（最新的排在最前面）
+        // 取出「本週內（週一~週日）」所有帶圖紀錄，最新的排前面
         const thisWeekImages = (activity.history || [])
           .filter(h => h.image && h.timestamp >= weekStartTime && h.timestamp <= weekEndTime)
           .sort((a, b) => b.timestamp - a.timestamp);
@@ -2042,7 +2035,6 @@
           </button>
         `;
 
-        // 首頁河道縮圖展示（本週內所有照片，由新到舊並排橫向滑動）
         let homeImagesHTML = '';
         if (thisWeekImages.length > 0) {
           homeImagesHTML = `
@@ -2306,7 +2298,7 @@
         if (categories.length === 0 && dictSubTab === 'categories') {
           catCardsList.innerHTML = `<div class="py-8 text-center text-xs text-neutral-400">尚未建立任何分類</div>`;
         } else {
-          categories.forEach((cat, index) => {
+          categories.forEach((cat) => {
             const card = document.createElement('div');
             card.className = "p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 space-y-2 select-none relative";
             
@@ -2404,7 +2396,7 @@
       }
     }
 
-    // --- CATEGORY SORT MODAL COMPONENT (DRAG & DROP WITH DELIBERATE TOUCH PRESS) ---
+    // --- CATEGORY SORT MODAL COMPONENT ---
     function openCategorySortModal() {
       const modal = document.getElementById('categorySortModal');
       renderCategorySortModalList();
@@ -2459,7 +2451,6 @@
       const grip = itemEl.querySelector('.drag-grip');
       if (!grip) return;
 
-      // Desktop HTML5 Drag
       grip.addEventListener('dragstart', (e) => {
         modalDragSrcIndex = index;
         itemEl.classList.add('opacity-40', 'scale-[0.98]');
@@ -2483,7 +2474,6 @@
         applyCategoryReorder(modalDragSrcIndex, index);
       });
 
-      // Mobile Touch Drag with Long-Press (長按防誤觸機制)
       grip.addEventListener('touchstart', (e) => {
         if (e.touches.length !== 1) return;
         const touch = e.touches[0];
@@ -2589,7 +2579,336 @@
       });
     }
 
-    // --- REPORT VIEW COMPONENT & RANKINGS ---
+    // --- REPORT CALENDAR (CATEGORY & ITEM CALENDARS WITH SOLID DOT MARKERS) ---
+    function switchReportCalendarMode(mode) {
+      reportCalMode = mode;
+      const catBtn = document.getElementById('calModeCategoryBtn');
+      const itemBtn = document.getElementById('calModeItemBtn');
+      const catTabs = document.getElementById('reportCalCategoryTabs');
+      const itemBadgeBox = document.getElementById('calFocusItemBadgeContainer');
+
+      const activeClass = "px-2.5 py-1 rounded-md text-[11px] font-bold bg-white dark:bg-neutral-900 text-neutral-950 dark:text-white shadow-xs transition";
+      const inactiveClass = "px-2.5 py-1 rounded-md text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition";
+
+      if (mode === 'category') {
+        if (catBtn) catBtn.className = activeClass;
+        if (itemBtn) itemBtn.className = inactiveClass;
+        if (catTabs) catTabs.classList.remove('hidden');
+        if (itemBadgeBox) itemBadgeBox.classList.add('hidden');
+      } else {
+        if (itemBtn) itemBtn.className = activeClass;
+        if (catBtn) catBtn.className = inactiveClass;
+        if (catTabs) catTabs.classList.add('hidden');
+        if (itemBadgeBox) itemBadgeBox.classList.remove('hidden');
+      }
+
+      reportCalSelectedDateKey = null;
+      renderReportCalendar();
+      updateCalFocusItemBadge();
+    }
+
+    function renderReportCalCategoryTabs() {
+      const container = document.getElementById('reportCalCategoryTabs');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const tabs = [
+        { id: 'ALL', label: '全部分類' },
+        ...categories.map(c => ({ id: c, label: c })),
+        { id: 'UNCATEGORIZED', label: '未分類' }
+      ];
+
+      tabs.forEach(tab => {
+        const isActive = reportSelectedCalCategory === tab.id;
+        const btn = document.createElement('button');
+        btn.className = `px-2.5 py-1 rounded-lg text-xs whitespace-nowrap transition ${
+          isActive 
+            ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold shadow-xs' 
+            : 'bg-neutral-200/70 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+        }`;
+        btn.innerText = tab.label;
+        btn.onclick = () => {
+          reportSelectedCalCategory = tab.id;
+          reportCalSelectedDateKey = null;
+          renderReportCalCategoryTabs();
+          renderReportCalendar();
+        };
+        container.appendChild(btn);
+      });
+    }
+
+    function setReportCalendarFocusItem(activityId) {
+      focusedHeatmapActivityId = activityId;
+      if (activityId) {
+        switchReportCalendarMode('item');
+      }
+      reportCalSelectedDateKey = null;
+      updateCalFocusItemBadge();
+      renderReportCalendar();
+      renderReportView();
+    }
+
+    function updateCalFocusItemBadge() {
+      const label = document.getElementById('calendarFocusItemLabel');
+      const resetBtn = document.getElementById('resetCalendarFocusBtn');
+      if (!label || !resetBtn) return;
+
+      if (!focusedHeatmapActivityId) {
+        label.innerText = '點長條圖選項目';
+        resetBtn.classList.add('hidden');
+      } else {
+        const act = activities.find(a => a.id === focusedHeatmapActivityId);
+        label.innerText = act ? act.name : '未知項目';
+        resetBtn.classList.remove('hidden');
+      }
+    }
+
+    function shiftReportCalendar(monthDelta) {
+      reportCalendarState.month += monthDelta;
+      if (reportCalendarState.month < 0) {
+        reportCalendarState.month = 11;
+        reportCalendarState.year -= 1;
+      } else if (reportCalendarState.month > 11) {
+        reportCalendarState.month = 0;
+        reportCalendarState.year += 1;
+      }
+      reportCalSelectedDateKey = null;
+      renderReportCalendar();
+    }
+
+    function selectReportCalendarDate(year, month, day, matchingRecords) {
+      const dateKey = `${year}/${String(month + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+      reportCalSelectedDateKey = dateKey;
+      
+      const detailBox = document.getElementById('reportCalDateDetailBox');
+      const titleEl = document.getElementById('reportCalDateDetailTitle');
+      const badgeEl = document.getElementById('reportCalDateDetailBadge');
+      const listEl = document.getElementById('reportCalDateDetailList');
+
+      if (!detailBox || !titleEl || !badgeEl || !listEl) return;
+
+      if (!matchingRecords || matchingRecords.length === 0) {
+        detailBox.classList.add('hidden');
+        renderReportCalendar();
+        return;
+      }
+
+      detailBox.classList.remove('hidden');
+      titleEl.innerText = `${dateKey} 紀錄詳情`;
+      badgeEl.innerText = `${matchingRecords.length} 筆`;
+      listEl.innerHTML = '';
+
+      matchingRecords.forEach(rec => {
+        const row = document.createElement('div');
+        row.className = "py-1.5 px-2.5 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 text-xs space-y-1";
+        const catBadge = rec.activityCategory 
+          ? `<span class="text-[10px] px-1.5 py-0.2 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500">${escapeHTML(rec.activityCategory)}</span>` 
+          : '';
+
+        row.innerHTML = `
+          <div class="flex items-center justify-between gap-1.5">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 flex-shrink-0"></span>
+              <span class="font-bold text-neutral-900 dark:text-neutral-100 truncate">${escapeHTML(rec.activityName)}</span>
+              ${catBadge}
+            </div>
+            <span class="font-mono text-neutral-400 text-[11px] flex-shrink-0">${formatTimeOnly(rec.timestamp)}</span>
+          </div>
+          ${rec.note ? `<p class="text-[11px] text-neutral-500 dark:text-neutral-400 whitespace-pre-line pl-3">${escapeHTML(rec.note)}</p>` : ''}
+          ${rec.image ? `
+            <div class="pl-3 pt-0.5">
+              <img src="${rec.image}" alt="縮圖" onclick="openImagePreviewModal(this.src)" class="w-10 h-10 object-cover rounded-lg border border-neutral-200 dark:border-neutral-700 cursor-pointer shadow-xs hover:opacity-90" />
+            </div>
+          ` : ''}
+        `;
+        listEl.appendChild(row);
+      });
+
+      renderReportCalendar();
+    }
+
+    const selectReportCalDate = selectReportCalendarDate;
+
+    function renderReportCalendar() {
+      const container = document.getElementById('reportCalendarContainer');
+      if (!container) return;
+      const { year, month } = reportCalendarState;
+
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysCount = new Date(year, month + 1, 0).getDate();
+
+      let targetActivities = activities.filter(a => !a.isArchived);
+      if (reportCalMode === 'category') {
+        if (reportSelectedCalCategory === 'UNCATEGORIZED') {
+          targetActivities = targetActivities.filter(a => !a.categories || a.categories.length === 0);
+        } else if (reportSelectedCalCategory !== 'ALL') {
+          targetActivities = targetActivities.filter(a => (a.categories || []).includes(reportSelectedCalCategory));
+        }
+      } else {
+        if (focusedHeatmapActivityId) {
+          targetActivities = targetActivities.filter(a => a.id === focusedHeatmapActivityId);
+        }
+      }
+
+      const dayRecordsMap = {};
+      targetActivities.forEach(act => {
+        (act.history || []).forEach(h => {
+          const d = new Date(h.timestamp);
+          if (d.getFullYear() === year && d.getMonth() === month) {
+            const dayNum = d.getDate();
+            if (!dayRecordsMap[dayNum]) dayRecordsMap[dayNum] = [];
+            dayRecordsMap[dayNum].push({
+              activityName: act.name,
+              activityCategory: (act.categories && act.categories.length > 0) ? act.categories[0] : '',
+              timestamp: h.timestamp,
+              note: h.note || '',
+              image: h.image || ''
+            });
+          }
+        });
+      });
+
+      const today = new Date();
+      const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+
+      let cells = '';
+      for (let i = 0; i < firstDay; i++) {
+        cells += `<div class="h-8"></div>`;
+      }
+
+      for (let day = 1; day <= daysCount; day++) {
+        const records = dayRecordsMap[day] || [];
+        const hasRecord = records.length > 0;
+        const isToday = isCurrentMonth && day === today.getDate();
+        const dateKey = `${year}/${String(month + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+        const isSelected = reportCalSelectedDateKey === dateKey;
+
+        let cellBtn = '';
+        if (hasRecord) {
+          cellBtn = `
+            <button 
+              type="button"
+              onclick="selectReportCalendarDate(${year}, ${month}, ${day}, ${JSON.stringify(records).replace(/"/g, '&quot;')})"
+              class="relative w-7 h-7 rounded-full flex flex-col items-center justify-center text-xs font-bold transition active:scale-95 ${
+                isSelected 
+                  ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 ring-2 ring-blue-500 shadow-md' 
+                  : 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 hover:opacity-90 shadow-xs'
+              }"
+              title="${dateKey} (有 ${records.length} 筆紀錄，點擊查看)"
+            >
+              <span>${day}</span>
+              <span class="w-1 h-1 rounded-full ${isSelected ? 'bg-blue-400 dark:bg-blue-600' : 'bg-blue-500 dark:bg-blue-400'} mt-0.5"></span>
+            </button>
+          `;
+        } else if (isToday) {
+          cellBtn = `
+            <div class="w-7 h-7 rounded-full border border-blue-500 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center text-xs">
+              ${day}
+            </div>
+          `;
+        } else {
+          cellBtn = `
+            <div class="w-7 h-7 flex items-center justify-center text-xs text-neutral-400 dark:text-neutral-600 font-medium">
+              ${day}
+            </div>
+          `;
+        }
+
+        cells += `
+          <div class="h-8 flex items-center justify-center">
+            ${cellBtn}
+          </div>
+        `;
+      }
+
+      const weekHeaders = ['日', '一', '二', '三', '四', '五', '六'];
+      const totalDaysWithRecords = Object.keys(dayRecordsMap).length;
+
+      container.innerHTML = `
+        <div class="flex items-center justify-between text-xs pb-1">
+          <span class="font-bold text-neutral-900 dark:text-neutral-100">${year} 年 ${month + 1} 月</span>
+          <div class="flex items-center gap-1 text-neutral-500">
+            <button onclick="shiftReportCalendar(-1)" class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800"><i class="ph ph-caret-left"></i></button>
+            <button onclick="reportCalendarState.year = new Date().getFullYear(); reportCalendarState.month = new Date().getMonth(); reportCalSelectedDateKey = null; renderReportCalendar();" class="text-[10px] px-1.5 py-0.5 rounded bg-neutral-200/60 dark:bg-neutral-800">今月</button>
+            <button onclick="shiftReportCalendar(1)" class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800"><i class="ph ph-caret-right"></i></button>
+          </div>
+        </div>
+        <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-neutral-400 font-medium">
+          ${weekHeaders.map(w => `<div>${w}</div>`).join('')}
+        </div>
+        <div class="grid grid-cols-7 gap-1 text-center select-none pt-1">
+          ${cells}
+        </div>
+        <div class="flex items-center justify-between text-[11px] text-neutral-400 pt-1 border-t border-neutral-100 dark:border-neutral-850">
+          <span>點選實心日期可檢視明細</span>
+          <span>當月累計記錄：<strong class="text-neutral-900 dark:text-neutral-100 font-bold">${totalDaysWithRecords}</strong> 天</span>
+        </div>
+      `;
+    }
+
+    // --- OVERDUE ACCORDION TOGGLE (DEFAULT CLOSED) ---
+    function toggleOverdueAccordion() {
+      isOverdueExpanded = !isOverdueExpanded;
+      const container = document.getElementById('overdueAccordionContainer');
+      const label = document.getElementById('overdueAccordionLabel');
+      const caret = document.getElementById('overdueAccordionCaret');
+
+      if (isOverdueExpanded) {
+        if (container) container.classList.remove('hidden');
+        if (label) label.innerText = '收合';
+        if (caret) caret.className = 'ph ph-caret-up transition-transform duration-200';
+      } else {
+        if (container) container.classList.add('hidden');
+        if (label) label.innerText = '展開';
+        if (caret) caret.className = 'ph ph-caret-down transition-transform duration-200';
+      }
+    }
+
+    // --- GLOBAL HISTORY DATE JUMP NAVIGATION ---
+    function jumpToHistoryDate(dateStr) {
+      if (!dateStr) return;
+      const [year, month, day] = dateStr.split('-').map(s => String(parseInt(s, 10)).padStart(2, '0'));
+      const targetDateKey = `${dateStr.split('-')[0]}/${month}/${day}`;
+      
+      const targetHeader = document.getElementById(`history-date-group-${targetDateKey}`);
+      if (targetHeader) {
+        targetHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        targetHeader.classList.add('bg-blue-100', 'dark:bg-blue-950/60', 'transition-colors');
+        setTimeout(() => {
+          targetHeader.classList.remove('bg-blue-100', 'dark:bg-blue-950/60');
+        }, 1500);
+      } else {
+        showToast(`時間軸無 ${targetDateKey} 的紀錄`, 'ph-magnifying-glass');
+      }
+    }
+
+    function toggleHistoryLogAccordion() {
+      isHistoryLogExpanded = !isHistoryLogExpanded;
+      const container = document.getElementById('reportHistoryLogContainer');
+      const label = document.getElementById('historyLogToggleLabel');
+      const caret = document.getElementById('historyLogCaret');
+
+      if (isHistoryLogExpanded) {
+        if (container) container.classList.remove('hidden');
+        if (label) label.innerText = '收合明細';
+        if (caret) caret.className = 'ph ph-caret-up transition-transform duration-200';
+      } else {
+        if (container) container.classList.add('hidden');
+        if (label) label.innerText = '展開檢視';
+        if (caret) caret.className = 'ph ph-caret-down transition-transform duration-200';
+      }
+    }
+
+    function promptEditHistoryNote(activityId, recordId) {
+      const act = activities.find(a => a.id === activityId);
+      if (!act) return;
+      const rec = (act.history || []).find(r => r.id === recordId);
+      if (!rec) return;
+
+      const d = new Date(rec.timestamp);
+      openDateActionModal(act.id, d.getFullYear(), d.getMonth(), d.getDate());
+    }
+
     function setReportPeriod(period) {
       reportPeriod = period;
       document.querySelectorAll('.report-period-tab').forEach(tab => {
@@ -2736,140 +3055,6 @@
       }
     }
 
-    function setHeatmapFocusActivity(activityId) {
-      focusedHeatmapActivityId = activityId;
-      renderReportCalendar();
-      updateHeatmapFocusLabels();
-      renderReportView();
-    }
-
-    function updateHeatmapFocusLabels() {
-      const labelEl = document.getElementById('calendarFocusItemLabel');
-      const resetBtn = document.getElementById('resetCalendarFocusBtn');
-      if (!labelEl || !resetBtn) return;
-
-      if (!focusedHeatmapActivityId) {
-        labelEl.innerText = "全域總覽";
-        resetBtn.classList.add('hidden');
-      } else {
-        const act = activities.find(a => a.id === focusedHeatmapActivityId);
-        labelEl.innerText = act ? act.name : "全域總覽";
-        resetBtn.classList.remove('hidden');
-      }
-    }
-
-    function shiftReportCalendar(monthDelta) {
-      reportCalendarState.month += monthDelta;
-      if (reportCalendarState.month < 0) {
-        reportCalendarState.month = 11;
-        reportCalendarState.year -= 1;
-      } else if (reportCalendarState.month > 11) {
-        reportCalendarState.month = 0;
-        reportCalendarState.year += 1;
-      }
-      renderReportCalendar();
-    }
-
-    function renderReportCalendar() {
-      const container = document.getElementById('reportCalendarContainer');
-      if (!container) return;
-      const { year, month } = reportCalendarState;
-
-      const firstDay = new Date(year, month, 1).getDay();
-      const daysCount = new Date(year, month + 1, 0).getDate();
-
-      const countMap = {};
-      const targetActivities = focusedHeatmapActivityId 
-        ? activities.filter(a => a.id === focusedHeatmapActivityId)
-        : activities;
-
-      targetActivities.forEach(a => {
-        (a.history || []).forEach(h => {
-          const d = new Date(h.timestamp);
-          if (d.getFullYear() === year && d.getMonth() === month) {
-            const dateNum = d.getDate();
-            countMap[dateNum] = (countMap[dateNum] || 0) + 1;
-          }
-        });
-      });
-
-      const today = new Date();
-      const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
-
-      let cells = '';
-      for (let i = 0; i < firstDay; i++) {
-        cells += `<div class="h-6"></div>`;
-      }
-
-      for (let day = 1; day <= daysCount; day++) {
-        const count = countMap[day] || 0;
-        const isToday = isCurrentMonth && day === today.getDate();
-
-        let cellStyle = "text-neutral-400 dark:text-neutral-600";
-        if (count >= 3) {
-          cellStyle = "bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold shadow-sm";
-        } else if (count >= 1) {
-          cellStyle = "bg-neutral-300 dark:bg-neutral-700 text-neutral-900 dark:text-white font-medium";
-        } else if (isToday) {
-          cellStyle = "border border-blue-500 text-blue-600 dark:text-blue-400 font-bold";
-        }
-
-        cells += `
-          <div class="h-6 flex items-center justify-center">
-            <div class="w-5 h-5 rounded-md flex items-center justify-center text-[10px] ${cellStyle}" title="${year}/${month + 1}/${day}: ${count} 次記錄">
-              ${day}
-            </div>
-          </div>
-        `;
-      }
-
-      const weekHeaders = ['日', '一', '二', '三', '四', '五', '六'];
-
-      container.innerHTML = `
-        <div class="flex items-center justify-between text-xs pb-1">
-          <span class="font-bold text-neutral-900 dark:text-neutral-100">${year} 年 ${month + 1} 月</span>
-          <div class="flex items-center gap-1 text-neutral-500">
-            <button onclick="shiftReportCalendar(-1)" class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800"><i class="ph ph-caret-left"></i></button>
-            <button onclick="reportCalendarState.year = new Date().getFullYear(); reportCalendarState.month = new Date().getMonth(); renderReportCalendar();" class="text-[10px] px-1.5 py-0.5 rounded bg-neutral-200/60 dark:bg-neutral-800">今月</button>
-            <button onclick="shiftReportCalendar(1)" class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800"><i class="ph ph-caret-right"></i></button>
-          </div>
-        </div>
-        <div class="grid grid-cols-7 gap-1 text-center text-[10px] text-neutral-400 font-medium">
-          ${weekHeaders.map(w => `<div>${w}</div>`).join('')}
-        </div>
-        <div class="grid grid-cols-7 gap-1 text-center select-none pt-1">
-          ${cells}
-        </div>
-      `;
-    }
-
-    function toggleHistoryLogAccordion() {
-      isHistoryLogExpanded = !isHistoryLogExpanded;
-      const container = document.getElementById('reportHistoryLogContainer');
-      const label = document.getElementById('historyLogToggleLabel');
-      const caret = document.getElementById('historyLogCaret');
-
-      if (isHistoryLogExpanded) {
-        if (container) container.classList.remove('hidden');
-        if (label) label.innerText = '收合明細';
-        if (caret) caret.className = 'ph ph-caret-up transition-transform duration-200';
-      } else {
-        if (container) container.classList.add('hidden');
-        if (label) label.innerText = '展開檢視';
-        if (caret) caret.className = 'ph ph-caret-down transition-transform duration-200';
-      }
-    }
-
-    function promptEditHistoryNote(activityId, recordId) {
-      const act = activities.find(a => a.id === activityId);
-      if (!act) return;
-      const rec = (act.history || []).find(r => r.id === recordId);
-      if (!rec) return;
-
-      const d = new Date(rec.timestamp);
-      openDateActionModal(act.id, d.getFullYear(), d.getMonth(), d.getDate());
-    }
-
     function renderReportView() {
       const overdueListEl = document.getElementById('overdueList');
       const overdueBadge = document.getElementById('overdueCountBadge');
@@ -2878,9 +3063,6 @@
       const periodItemsBarList = document.getElementById('periodItemsBarList');
       const reportHistoryLogList = document.getElementById('reportHistoryLogList');
       const historyLogTotalCount = document.getElementById('historyLogTotalCount');
-      const focusedHistoryTitle = document.getElementById('focusedHistoryTitle');
-      const focusedHistoryCountBadge = document.getElementById('focusedHistoryCountBadge');
-      const focusedHistoryList = document.getElementById('focusedHistoryList');
 
       if (!overdueListEl || !periodItemsBarList || !reportHistoryLogList) return;
 
@@ -2891,7 +3073,6 @@
       overdueListEl.innerHTML = '';
       periodItemsBarList.innerHTML = '';
       reportHistoryLogList.innerHTML = '';
-      if (focusedHistoryList) focusedHistoryList.innerHTML = '';
 
       const { start: periodStartTime, label: periodLabel } = getPeriodStartTime(reportPeriod);
       if (periodRangeLabel) periodRangeLabel.innerText = `${periodLabel} 統計`;
@@ -2920,7 +3101,7 @@
         const maxVal = statsMap[0].count;
         statsMap.forEach(item => {
           const percent = Math.min(100, Math.round((item.count / maxVal) * 100));
-          const isFocused = focusedHeatmapActivityId === item.id;
+          const isFocused = focusedHeatmapActivityId === item.id && reportCalMode === 'item';
           const row = document.createElement('div');
           row.className = `p-2 rounded-xl transition cursor-pointer ${
             isFocused 
@@ -2928,17 +3109,17 @@
               : 'hover:bg-neutral-100 dark:hover:bg-neutral-800/60 border border-transparent'
           } space-y-1`;
           row.onclick = () => {
-            if (focusedHeatmapActivityId === item.id) {
-              setHeatmapFocusActivity(null);
+            if (focusedHeatmapActivityId === item.id && reportCalMode === 'item') {
+              setReportCalendarFocusItem(null);
             } else {
-              setHeatmapFocusActivity(item.id);
+              setReportCalendarFocusItem(item.id);
             }
           };
 
           row.innerHTML = `
             <div class="flex items-center justify-between text-xs font-medium">
               <span class="text-neutral-900 dark:text-neutral-100 font-semibold truncate flex items-center gap-1.5">
-                ${isFocused ? '<span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-600 text-white dark:bg-blue-500">已鎖定月曆</span>' : ''}
+                ${isFocused ? '<span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-600 text-white dark:bg-blue-500">鎖定中</span>' : ''}
                 ${escapeHTML(item.name)}
               </span>
               <span class="font-mono text-neutral-500 text-xs">${item.count} 次</span>
@@ -2951,72 +3132,10 @@
         });
       }
 
+      renderReportCalCategoryTabs();
       renderReportCalendar();
-      updateHeatmapFocusLabels();
+      updateCalFocusItemBadge();
       renderReportRankings();
-
-      if (focusedHistoryList && focusedHistoryTitle && focusedHistoryCountBadge) {
-        if (!focusedHeatmapActivityId) {
-          focusedHistoryTitle.innerText = '鎖定項目的歷史明細';
-          focusedHistoryCountBadge.innerText = '未鎖定';
-          focusedHistoryList.innerHTML = `
-            <div class="py-4 text-center text-xs text-neutral-400 space-y-1">
-              <p>點擊上方長條圖中任一事項以鎖定月曆</p>
-              <p class="text-[11px] text-neutral-400/80">鎖定後將在此列出該項目的專屬歷史紀錄與備註</p>
-            </div>
-          `;
-        } else {
-          const focusedAct = activities.find(a => a.id === focusedHeatmapActivityId);
-          if (focusedAct) {
-            focusedHistoryTitle.innerHTML = `<span>「${escapeHTML(focusedAct.name)}」歷史明細</span>`;
-            const actHistory = [...(focusedAct.history || [])].sort((a, b) => b.timestamp - a.timestamp);
-            focusedHistoryCountBadge.innerText = `${actHistory.length} 筆`;
-
-            if (actHistory.length === 0) {
-              focusedHistoryList.innerHTML = `<p class="text-xs text-neutral-400 py-3 text-center">該項目尚無歷史記錄</p>`;
-            } else {
-              actHistory.forEach(log => {
-                const row = document.createElement('div');
-                row.className = "py-1.5 px-2.5 rounded-xl bg-white dark:bg-neutral-900/80 border border-neutral-100 dark:border-neutral-900 transition hover:border-neutral-300 dark:hover:border-neutral-700 space-y-0.5";
-                const cleanNote = (log.note || '').replace(/^[\s\u3000]+/, '').trim();
-                const imgThumbHTML = log.image ? `
-                  <div class="pt-1">
-                    <img src="${log.image}" alt="縮圖" onclick="openImagePreviewModal(this.src)" class="w-10 h-10 object-cover rounded-lg border border-neutral-200 dark:border-neutral-700 cursor-pointer shadow-sm hover:opacity-90 transition" />
-                  </div>
-                ` : '';
-
-                row.innerHTML = `
-                  <div class="flex items-center justify-between gap-2 text-xs">
-                    <div class="flex items-center gap-1.5 min-w-0">
-                      <span class="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 flex-shrink-0"></span>
-                      <span class="font-mono text-neutral-700 dark:text-neutral-300 font-semibold">${formatPreciseDate(log.timestamp)}</span>
-                    </div>
-                    <div class="flex items-center gap-1.5 flex-shrink-0 font-mono text-xs text-neutral-400">
-                      <button 
-                        onclick="promptEditHistoryNote('${focusedAct.id}', '${log.id}')" 
-                        class="p-1 rounded text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition"
-                        title="編輯此筆備註"
-                      >
-                        <i class="ph ph-pencil-simple text-sm"></i>
-                      </button>
-                      <button 
-                        onclick="requestDeleteSingleRecord('${focusedAct.id}', '${log.id}')" 
-                        class="p-1 rounded text-neutral-300 hover:text-neutral-900 dark:hover:text-white transition"
-                        title="刪除此筆"
-                      >
-                        <i class="ph ph-trash text-sm"></i>
-                      </button>
-                    </div>
-                  </div>
-                  ${cleanNote ? `<div class="w-full text-left pt-0.5"><p class="text-xs font-sans text-neutral-600 dark:text-neutral-400 whitespace-pre-line break-words leading-normal select-text m-0 p-0">${escapeHTML(cleanNote)}</p></div>` : ''}
-                  ${imgThumbHTML}
-                `;
-                focusedHistoryList.appendChild(row);
-              });
-            }
-          }
-        }
-      }
 
       let overdueCount = 0;
       activities.forEach(activity => {
@@ -3030,7 +3149,7 @@
           const overDiff = (elapsedDays - targetDays).toFixed(1);
 
           const card = document.createElement('div');
-          card.className = "p-3 rounded-xl bg-neutral-100 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 flex items-center justify-between gap-2";
+          card.className = "p-3 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 flex items-center justify-between gap-2";
           card.innerHTML = `
             <div>
               <div class="flex items-center gap-1.5">
@@ -3055,7 +3174,7 @@
       if (overdueBadge) overdueBadge.innerText = overdueCount;
       if (overdueCount === 0) {
         overdueListEl.innerHTML = `
-          <div class="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-900/60 text-center text-xs text-neutral-400">
+          <div class="p-3 rounded-xl bg-white dark:bg-neutral-900/40 text-center text-xs text-neutral-400">
             目前無任何逾期項目
           </div>
         `;
@@ -3080,11 +3199,10 @@
       if (allLogs.length === 0) {
         reportHistoryLogList.innerHTML = `<p class="text-xs text-neutral-400 py-2 text-center">尚無任何歷史記錄</p>`;
       } else {
-        // Group records by Date (YYYY/MM/DD)
         const dateGroups = {};
         const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
 
-        allLogs.slice(0, 100).forEach(log => {
+        allLogs.slice(0, 150).forEach(log => {
           const d = new Date(log.timestamp);
           const y = d.getFullYear();
           const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -3094,6 +3212,7 @@
 
           if (!dateGroups[dateKey]) {
             dateGroups[dateKey] = {
+              dateKey: dateKey,
               dateLabel: `${dateKey} (${weekdayStr})`,
               logs: []
             };
@@ -3105,17 +3224,16 @@
           const group = dateGroups[dateKey];
           const groupBlock = document.createElement('div');
           groupBlock.className = "space-y-1 pt-1.5 first:pt-0";
+          groupBlock.id = `history-date-group-${group.dateKey}`;
 
-          // Date Header
           const header = document.createElement('div');
-          header.className = "flex items-center justify-between px-1 py-0.5 text-[11px] font-bold text-neutral-500 dark:text-neutral-400 border-b border-neutral-100 dark:border-neutral-900";
+          header.className = "flex items-center justify-between px-1 py-1 text-[11px] font-bold text-neutral-500 dark:text-neutral-400 border-b border-neutral-100 dark:border-neutral-900 rounded-lg transition-colors";
           header.innerHTML = `
             <span class="font-mono">${group.dateLabel}</span>
             <span class="font-mono text-[10px] text-neutral-400">${group.logs.length} 筆</span>
           `;
           groupBlock.appendChild(header);
 
-          // Items in Date Group
           group.logs.forEach(log => {
             const row = document.createElement('div');
             row.className = "py-1.5 px-2.5 rounded-xl bg-white dark:bg-neutral-900/80 border border-neutral-100 dark:border-neutral-900 transition hover:border-neutral-300 dark:hover:border-neutral-700 space-y-0.5";
@@ -3160,10 +3278,10 @@
           reportHistoryLogList.appendChild(groupBlock);
         });
 
-        if (allLogs.length > 100) {
+        if (allLogs.length > 150) {
           const moreTip = document.createElement('div');
           moreTip.className = "text-center text-xs text-neutral-400 py-1.5";
-          moreTip.innerText = `僅顯示最近 100 筆 (共 ${allLogs.length} 筆)`;
+          moreTip.innerText = `僅顯示最近 150 筆 (共 ${allLogs.length} 筆)`;
           reportHistoryLogList.appendChild(moreTip);
         }
       }
@@ -3245,6 +3363,75 @@
       renderHomeView(homeSearch);
       renderDictionaryView(dictSearch);
       renderReportView();
+      updateStorageUsageUI();
+    }
+
+    // --- LOCAL STORAGE USAGE CALCULATION ---
+    function getStorageUsage() {
+      let totalBytes = 0;
+      try {
+        const keys = safeStorage.getAllKeys();
+        keys.forEach(key => {
+          const val = safeStorage.get(key) || '';
+          totalBytes += (key.length + val.length) * 2;
+        });
+      } catch (e) {
+        console.warn('容量計算例外:', e);
+      }
+
+      const usedKB = (totalBytes / 1024).toFixed(1);
+      const usedMB = (totalBytes / (1024 * 1024)).toFixed(2);
+      const maxMB = 5.0;
+      const percent = Math.min(100, (totalBytes / (maxMB * 1024 * 1024)) * 100).toFixed(1);
+
+      return { totalBytes, usedKB, usedMB, percent };
+    }
+
+    function updateStorageUsageUI() {
+      const textEl = document.getElementById('storageUsageText');
+      const barEl = document.getElementById('storageUsageBar');
+      const percentEl = document.getElementById('storageUsagePercent');
+      if (!textEl || !barEl || !percentEl) return;
+
+      const { usedKB, usedMB, percent } = getStorageUsage();
+      const displaySize = parseFloat(usedMB) >= 1.0 ? `${usedMB} MB` : `${usedKB} KB`;
+
+      textEl.innerText = `${displaySize} / 5 MB`;
+      percentEl.innerText = `${percent}%`;
+      barEl.style.width = `${percent}%`;
+
+      if (parseFloat(percent) >= 80) {
+        barEl.className = 'h-full bg-red-500 rounded-full transition-all duration-300';
+      } else {
+        barEl.className = 'h-full bg-blue-600 dark:bg-blue-400 rounded-full transition-all duration-300';
+      }
+    }
+
+    function closeBackupModal() {
+      const backupModal = document.getElementById('backupModal');
+      if (backupModal) backupModal.classList.add('hidden');
+    }
+
+    function requestClearAllData() {
+      triggerConfirm(
+        '清除所有資料',
+        '確定要清除所有追蹤事項、歷史紀錄與縮圖照片嗎？此操作無法復原，建議先匯出備份！',
+        () => {
+          safeStorage.remove(STORAGE_KEY);
+          safeStorage.remove(CATEGORIES_KEY);
+
+          activities = [];
+          categories = [...DEFAULT_CATEGORIES];
+          expandedItemId = null;
+          focusedHeatmapActivityId = null;
+
+          saveData();
+          saveCategories();
+          refreshAll();
+          closeBackupModal();
+          showToast('已清除所有資料並重置', 'ph-trash');
+        }
+      );
     }
 
     function toggleNavMenu() {
@@ -3353,8 +3540,12 @@
       });
 
       const backupModal = document.getElementById('backupModal');
-      document.getElementById('backupModalBtn')?.addEventListener('click', () => backupModal?.classList.remove('hidden'));
-      document.getElementById('closeBackupModalBtn')?.addEventListener('click', () => backupModal?.classList.add('hidden'));
+      document.getElementById('backupModalBtn')?.addEventListener('click', () => {
+        updateStorageUsageUI();
+        backupModal?.classList.remove('hidden');
+      });
+      document.getElementById('closeBackupModalBtn')?.addEventListener('click', closeBackupModal);
+      document.getElementById('clearAllDataBtn')?.addEventListener('click', requestClearAllData);
 
       document.getElementById('exportDataBtn')?.addEventListener('click', () => {
         const exportPayload = { activities, categories, version: '2.5' };
@@ -3366,7 +3557,7 @@
         downloadAnchor.click();
         downloadAnchor.remove();
         showToast("已匯出 JSON 備份檔");
-        backupModal?.classList.add('hidden');
+        closeBackupModal();
       });
 
       document.getElementById('importFileInput')?.addEventListener('change', (e) => {
@@ -3398,7 +3589,8 @@
             saveData();
             saveCategories();
             refreshAll();
-            backupModal?.classList.add('hidden');
+            updateStorageUsageUI();
+            closeBackupModal();
             showToast("成功匯入紀錄資料！");
           } catch (err) {
             showToast("檔案讀取失敗", "ph-x-circle");
