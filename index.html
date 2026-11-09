@@ -241,14 +241,23 @@
           <button class="report-period-tab flex-1 py-1.5 rounded-lg text-center transition text-neutral-500 dark:text-neutral-400" data-period="year">今年</button>
         </div>
 
-        <!-- Period summary count & interactive bar card -->
-        <div class="p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/70 dark:border-neutral-800 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-medium text-neutral-500 dark:text-neutral-400" id="periodRangeLabel">區間統計</span>
-            <span class="text-xs font-mono font-bold text-neutral-900 dark:text-neutral-100" id="periodTotalCount">0 次操作</span>
+        <!-- Period summary count & interactive bar card (Collapsible Accordion - Default Closed) -->
+        <div class="rounded-2xl border border-neutral-200/80 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/60 overflow-hidden">
+          <button 
+            id="togglePeriodBarsAccordionBtn" 
+            onclick="togglePeriodBarsAccordion()"
+            class="w-full flex items-center justify-between p-3 text-left hover:bg-neutral-100/60 dark:hover:bg-neutral-800/40 transition"
+          >
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-medium text-neutral-500 dark:text-neutral-400" id="periodRangeLabel">區間統計</span>
+              <span class="text-xs font-mono font-bold text-neutral-900 dark:text-neutral-100" id="periodTotalCount">0 次操作</span>
+            </div>
+            <i class="ph ph-caret-down text-neutral-400 transition-transform duration-200 text-sm" id="periodBarsAccordionCaret"></i>
+          </button>
+          <div id="periodBarsAccordionContainer" class="p-3 pt-0 space-y-2 hidden border-t border-neutral-100 dark:border-neutral-850">
+            <p class="text-[11px] text-neutral-400 pt-2">點擊下方項目可將月曆切換至該項目的月曆檢視</p>
+            <div class="space-y-1.5 max-h-52 overflow-y-auto no-scrollbar pr-0.5" id="periodItemsBarList"></div>
           </div>
-          <p class="text-[11px] text-neutral-400">點擊下方項目可將月曆切換至該項目的月曆檢視</p>
-          <div class="space-y-1.5" id="periodItemsBarList"></div>
         </div>
 
         <!-- Filterable Calendar (By Category / By Item) without Heatmap -->
@@ -335,10 +344,7 @@
               <span class="text-xs font-bold text-neutral-900 dark:text-neutral-100 uppercase tracking-wider">可能已逾期事項</span>
               <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-neutral-200 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 font-bold" id="overdueCountBadge">0</span>
             </div>
-            <div class="flex items-center gap-1 text-[11px] text-neutral-400">
-              <span id="overdueAccordionLabel">展開</span>
-              <i class="ph ph-caret-down transition-transform duration-200" id="overdueAccordionCaret"></i>
-            </div>
+            <i class="ph ph-caret-down text-neutral-400 transition-transform duration-200 text-sm" id="overdueAccordionCaret"></i>
           </button>
           <div id="overdueAccordionContainer" class="p-3 pt-0 space-y-2 hidden border-t border-neutral-100 dark:border-neutral-850">
             <div id="overdueList" class="space-y-1.5 pt-2"></div>
@@ -357,10 +363,7 @@
               <span>全域歷史明細清單</span>
               <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-200/70 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400" id="historyLogTotalCount">0 筆</span>
             </div>
-            <div class="flex items-center gap-1 text-[11px] text-neutral-400">
-              <span id="historyLogToggleLabel">展開檢視</span>
-              <i class="ph ph-caret-down transition-transform duration-200" id="historyLogCaret"></i>
-            </div>
+            <i class="ph ph-caret-down text-neutral-400 transition-transform duration-200 text-sm" id="historyLogCaret"></i>
           </button>
           
           <div id="reportHistoryLogContainer" class="space-y-2 pt-1 hidden">
@@ -663,6 +666,7 @@
     let reportRankMode = 'frequency'; 
     let isHistoryLogExpanded = false;
     let isOverdueExpanded = false;
+    let isPeriodBarsExpanded = false;
     let reportCalMode = 'category'; // 'category' | 'item'
     let reportSelectedCalCategory = 'ALL';
     let reportCalSelectedDateKey = null; // 'YYYY/MM/DD'
@@ -2632,6 +2636,30 @@
       });
     }
 
+    // --- ACCORDION FOR PERIOD SUMMARY BARS (DEFAULT CLOSED) ---
+    function togglePeriodBarsAccordion() {
+      isPeriodBarsExpanded = !isPeriodBarsExpanded;
+      const container = document.getElementById('periodBarsAccordionContainer');
+      const caret = document.getElementById('periodBarsAccordionCaret');
+
+      if (isPeriodBarsExpanded) {
+        if (container) container.classList.remove('hidden');
+        if (caret) caret.className = 'ph ph-caret-up text-neutral-400 transition-transform duration-200 text-sm';
+      } else {
+        if (container) container.classList.add('hidden');
+        if (caret) caret.className = 'ph ph-caret-down text-neutral-400 transition-transform duration-200 text-sm';
+      }
+    }
+
+    // --- CLEAR REPORT CALENDAR DATE DETAIL ---
+    function clearReportCalDateDetail() {
+      reportCalSelectedDateKey = null;
+      const detailBox = document.getElementById('reportCalDateDetailBox');
+      const listEl = document.getElementById('reportCalDateDetailList');
+      if (detailBox) detailBox.classList.add('hidden');
+      if (listEl) listEl.innerHTML = '';
+    }
+
     // --- REPORT CALENDAR (CATEGORY & ITEM CALENDARS WITH SOLID DOT MARKERS) ---
     function switchReportCalendarMode(mode) {
       reportCalMode = mode;
@@ -2655,7 +2683,7 @@
         if (itemBadgeBox) itemBadgeBox.classList.remove('hidden');
       }
 
-      reportCalSelectedDateKey = null;
+      clearReportCalDateDetail();
       renderReportCalendar();
       updateCalFocusItemBadge();
     }
@@ -2682,7 +2710,7 @@
         btn.innerText = tab.label;
         btn.onclick = () => {
           reportSelectedCalCategory = tab.id;
-          reportCalSelectedDateKey = null;
+          clearReportCalDateDetail();
           renderReportCalCategoryTabs();
           renderReportCalendar();
         };
@@ -2695,7 +2723,7 @@
       if (activityId) {
         switchReportCalendarMode('item');
       }
-      reportCalSelectedDateKey = null;
+      clearReportCalDateDetail();
       updateCalFocusItemBadge();
       renderReportCalendar();
       renderReportView();
@@ -2725,12 +2753,17 @@
         reportCalendarState.month = 0;
         reportCalendarState.year += 1;
       }
-      reportCalSelectedDateKey = null;
+      clearReportCalDateDetail();
       renderReportCalendar();
     }
 
     function selectReportCalendarDate(year, month, day, matchingRecords) {
       const dateKey = `${year}/${String(month + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
+      if (reportCalSelectedDateKey === dateKey) {
+        clearReportCalDateDetail();
+        renderReportCalendar();
+        return;
+      }
       reportCalSelectedDateKey = dateKey;
       
       const detailBox = document.getElementById('reportCalDateDetailBox');
@@ -2882,7 +2915,7 @@
           <span class="font-bold text-neutral-900 dark:text-neutral-100">${year} 年 ${month + 1} 月</span>
           <div class="flex items-center gap-1 text-neutral-500">
             <button onclick="shiftReportCalendar(-1)" class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800"><i class="ph ph-caret-left"></i></button>
-            <button onclick="reportCalendarState.year = new Date().getFullYear(); reportCalendarState.month = new Date().getMonth(); reportCalSelectedDateKey = null; renderReportCalendar();" class="text-[10px] px-1.5 py-0.5 rounded bg-neutral-200/60 dark:bg-neutral-800">今月</button>
+            <button onclick="reportCalendarState.year = new Date().getFullYear(); reportCalendarState.month = new Date().getMonth(); clearReportCalDateDetail(); renderReportCalendar();" class="text-[10px] px-1.5 py-0.5 rounded bg-neutral-200/60 dark:bg-neutral-800">今月</button>
             <button onclick="shiftReportCalendar(1)" class="p-1 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800"><i class="ph ph-caret-right"></i></button>
           </div>
         </div>
@@ -2903,17 +2936,14 @@
     function toggleOverdueAccordion() {
       isOverdueExpanded = !isOverdueExpanded;
       const container = document.getElementById('overdueAccordionContainer');
-      const label = document.getElementById('overdueAccordionLabel');
       const caret = document.getElementById('overdueAccordionCaret');
 
       if (isOverdueExpanded) {
         if (container) container.classList.remove('hidden');
-        if (label) label.innerText = '收合';
-        if (caret) caret.className = 'ph ph-caret-up transition-transform duration-200';
+        if (caret) caret.className = 'ph ph-caret-up text-neutral-400 transition-transform duration-200 text-sm';
       } else {
         if (container) container.classList.add('hidden');
-        if (label) label.innerText = '展開';
-        if (caret) caret.className = 'ph ph-caret-down transition-transform duration-200';
+        if (caret) caret.className = 'ph ph-caret-down text-neutral-400 transition-transform duration-200 text-sm';
       }
     }
 
@@ -2938,17 +2968,14 @@
     function toggleHistoryLogAccordion() {
       isHistoryLogExpanded = !isHistoryLogExpanded;
       const container = document.getElementById('reportHistoryLogContainer');
-      const label = document.getElementById('historyLogToggleLabel');
       const caret = document.getElementById('historyLogCaret');
 
       if (isHistoryLogExpanded) {
         if (container) container.classList.remove('hidden');
-        if (label) label.innerText = '收合明細';
-        if (caret) caret.className = 'ph ph-caret-up transition-transform duration-200';
+        if (caret) caret.className = 'ph ph-caret-up text-neutral-400 transition-transform duration-200 text-sm';
       } else {
         if (container) container.classList.add('hidden');
-        if (label) label.innerText = '展開檢視';
-        if (caret) caret.className = 'ph ph-caret-down transition-transform duration-200';
+        if (caret) caret.className = 'ph ph-caret-down text-neutral-400 transition-transform duration-200 text-sm';
       }
     }
 
