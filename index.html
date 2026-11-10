@@ -53,6 +53,14 @@
       from { opacity: 0.65; transform: translateY(2px); }
       to { opacity: 1; transform: translateY(0); }
     }
+    .category-sort-placeholder {
+      border: 2px dashed #3b82f6 !important;
+      background: rgba(59, 130, 246, 0.08) !important;
+      transition: none !important;
+      box-sizing: border-box;
+    }
+    .category-sort-placeholder > * { visibility: hidden; }
+    .category-sort-ghost { box-sizing: border-box; }
   </style>
 </head>
 <body class="bg-neutral-100 text-neutral-900 dark:bg-black dark:text-neutral-100 min-h-screen flex flex-col justify-between font-sans antialiased transition-colors duration-200">
@@ -428,7 +436,6 @@
             <i class="ph ph-x text-base"></i>
           </button>
         </div>
-        <p class="text-[11px] text-neutral-400">長按右側圖示拖曳以調整次序，首頁標籤將同步更新</p>
         <div id="categorySortList" class="space-y-1.5 max-h-72 overflow-y-auto no-scrollbar py-1 relative"></div>
         <div class="pt-2">
           <button onclick="closeCategorySortModal()" class="w-full py-2 text-xs font-bold rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-950 shadow transition">
@@ -674,13 +681,7 @@
     let pendingConfirmAction = null;
     let isNavMenuOpen = false;
     let activeCatModalActivityId = null;
-    let modalDragSrcIndex = null;
-    let modalTouchDraggingEl = null;
-    let modalTouchStartIndex = null;
-    let modalTouchHoldTimer = null;
-    let modalIsTouchDragActive = false;
-    let modalTouchStartPos = { x: 0, y: 0 };
-    let modalAutoScrollTimer = null;
+    let categorySortDrag = null;
     let modalBacklogImage = '';
 
     let editNameState = {
@@ -2506,13 +2507,13 @@
       renderDictionaryView(document.getElementById('dictSearchInput')?.value || '');
       renderHomeCategoryTabs();
       renderHomeView(document.getElementById('homeSearchInput')?.value || '');
-      if (modalAutoScrollTimer) clearInterval(modalAutoScrollTimer);
-      if (modalTouchHoldTimer) clearTimeout(modalTouchHoldTimer);
+      finishCategorySortDrag(false);
     }
 
     function renderCategorySortModalList() {
       const list = document.getElementById('categorySortList');
       if (!list) return;
+      const scrollTop = list.scrollTop;
       list.innerHTML = '';
 
       if (categories.length === 0) {
@@ -2533,7 +2534,7 @@
           <div 
             class="drag-grip p-1.5 -mr-1 text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center"
             title="按住拖曳排序"
-            draggable="true"
+            draggable="false"
           >
             <i class="ph ph-dots-six-vertical text-base font-bold"></i>
           </div>
@@ -2542,109 +2543,129 @@
         setupModalItemDrag(item, idx, list);
         list.appendChild(item);
       });
+      list.scrollTop = scrollTop;
+    }
+
+    function updateCategorySortDrag() {
+      const drag = categorySortDrag;
+      if (!drag || !drag.active) return;
+      const bounds = drag.list.getBoundingClientRect();
+      // Keep the floating copy under the finger, including outside the scroll area.
+      drag.ghost.style.transform = `translate3d(${drag.x - drag.offsetX}px, ${drag.y - drag.offsetY}px, 0)`;
+      const edge = Math.min(56, bounds.height / 3);
+      let speed = 0;
+      if (drag.y < bounds.top + edge) {
+        speed = -Math.min(1, (bounds.top + edge - drag.y) / edge);
+      } else if (drag.y > bounds.bottom - edge) {
+        speed = Math.min(1, (drag.y - bounds.bottom + edge) / edge);
+      }
+      const now = performance.now();
+      const elapsed = Math.min(32, now - drag.lastFrame);
+      drag.lastFrame = now;
+      drag.list.scrollTop += speed * 480 * elapsed / 1000;
+
+      // Move the placeholder in the actual list so the exact insertion slot is visible.
+      const y = Math.max(bounds.top, Math.min(bounds.bottom, drag.y));
+      const next = [...drag.list.children].find(row => {
+        if (row === drag.item) return false;
+        const rect = row.getBoundingClientRect();
+        return y < rect.top + rect.height / 2;
+      });
+      if (drag.item.nextElementSibling !== (next || null)) {
+        const scrollTop = drag.list.scrollTop;
+        drag.list.insertBefore(drag.item, next || null);
+        drag.list.scrollTop = scrollTop;
+      }
+      drag.frame = requestAnimationFrame(updateCategorySortDrag);
+    }
+
+    function finishCategorySortDrag(commit = false) {
+      const drag = categorySortDrag;
+      if (!drag) return;
+      categorySortDrag = null;
+      clearTimeout(drag.holdTimer);
+      if (drag.frame) cancelAnimationFrame(drag.frame);
+      drag.ghost?.remove();
+      drag.item.classList.remove('category-sort-placeholder');
+      if (drag.list.hasPointerCapture(drag.pointerId)) {
+        drag.list.releasePointerCapture(drag.pointerId);
+      }
+      if (!drag.active) return;
+      const toIndex = [...drag.list.children].indexOf(drag.item);
+      if (commit && toIndex !== drag.fromIndex) {
+        applyCategoryReorder(drag.fromIndex, toIndex);
+      } else {
+        renderCategorySortModalList();
+      }
     }
 
     function setupModalItemDrag(itemEl, index, listContainer) {
       const grip = itemEl.querySelector('.drag-grip');
       if (!grip) return;
+      grip.style.touchAction = 'none';
+      grip.addEventListener('dragstart', e => e.preventDefault());
+      grip.addEventListener('contextmenu', e => e.preventDefault());
 
-      grip.addEventListener('dragstart', (e) => {
-        modalDragSrcIndex = index;
-        itemEl.classList.add('opacity-40', 'scale-[0.98]');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', index);
-      });
-
-      itemEl.addEventListener('dragend', () => {
-        itemEl.classList.remove('opacity-40', 'scale-[0.98]');
-        modalDragSrcIndex = null;
-      });
-
-      itemEl.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-      });
-
-      itemEl.addEventListener('drop', (e) => {
-        e.preventDefault();
-        if (modalDragSrcIndex === null || modalDragSrcIndex === index) return;
-        applyCategoryReorder(modalDragSrcIndex, index);
-      });
-
-      grip.addEventListener('touchstart', (e) => {
-        if (e.touches.length !== 1) return;
-        const touch = e.touches[0];
-        modalTouchStartPos = { x: touch.clientX, y: touch.clientY };
-        modalIsTouchDragActive = false;
-
-        if (modalTouchHoldTimer) clearTimeout(modalTouchHoldTimer);
-
-        modalTouchHoldTimer = setTimeout(() => {
-          modalIsTouchDragActive = true;
-          modalTouchStartIndex = index;
-          modalTouchDraggingEl = itemEl;
-          itemEl.classList.add('opacity-60', 'ring-2', 'ring-blue-500', 'scale-[1.02]', 'shadow-lg');
-
+      grip.addEventListener('pointerdown', e => {
+        if (!e.isPrimary || e.button !== 0 || categorySortDrag) return;
+        const rect = itemEl.getBoundingClientRect();
+        const drag = {
+          item: itemEl, grip, list: listContainer, fromIndex: index,
+          pointerId: e.pointerId, x: e.clientX, y: e.clientY,
+          startX: e.clientX, startY: e.clientY,
+          offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top,
+          active: false, ghost: null, frame: null, holdTimer: null
+        };
+        categorySortDrag = drag;
+        // Capture on the stationary scroll container: moving the row must not lose the pointer.
+        listContainer.setPointerCapture(e.pointerId);
+        const start = () => {
+          if (categorySortDrag !== drag) return;
+          drag.active = true;
+          const box = itemEl.getBoundingClientRect();
+          drag.ghost = itemEl.cloneNode(true);
+          drag.ghost.classList.add('category-sort-ghost');
+          drag.ghost.setAttribute('aria-hidden', 'true');
+          Object.assign(drag.ghost.style, {
+            position: 'fixed', left: '0', top: '0', margin: '0',
+            width: `${box.width}px`, height: `${box.height}px`,
+            zIndex: '1000', pointerEvents: 'none', opacity: '0.85',
+            transition: 'none', boxShadow: '0 10px 28px rgba(0,0,0,0.25)',
+            outline: '2px solid #3b82f6'
+          });
+          document.body.appendChild(drag.ghost);
+          itemEl.classList.add('category-sort-placeholder');
+          drag.lastFrame = performance.now();
+          updateCategorySortDrag();
           if (navigator.vibrate) {
             try { navigator.vibrate(30); } catch (_) {}
           }
-        }, 220);
-      }, { passive: true });
+        };
+        drag.holdTimer = setTimeout(start, 350);
+      });
 
-      grip.addEventListener('touchmove', (e) => {
-        const touch = e.touches[0];
-
-        if (!modalIsTouchDragActive) {
-          const dist = Math.hypot(touch.clientX - modalTouchStartPos.x, touch.clientY - modalTouchStartPos.y);
-          if (dist > 8) {
-            if (modalTouchHoldTimer) {
-              clearTimeout(modalTouchHoldTimer);
-              modalTouchHoldTimer = null;
-            }
-          }
+      listContainer.onpointermove = e => {
+        const drag = categorySortDrag;
+        if (!drag || e.pointerId !== drag.pointerId) return;
+        drag.x = e.clientX;
+        drag.y = e.clientY;
+        if (!drag.active && Math.hypot(drag.x - drag.startX, drag.y - drag.startY) > 8) {
+          // A swipe before the long press completes must never start sorting.
+          finishCategorySortDrag(false);
           return;
         }
-
-        if (!modalTouchDraggingEl) return;
-        e.preventDefault();
-
-        const containerRect = listContainer.getBoundingClientRect();
-        if (touch.clientY < containerRect.top + 30) {
-          listContainer.scrollTop -= 6;
-        } else if (touch.clientY > containerRect.bottom - 30) {
-          listContainer.scrollTop += 6;
-        }
-
-        const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
-        const overItem = targetEl ? targetEl.closest('.sort-item') : null;
-        if (overItem && overItem !== modalTouchDraggingEl) {
-          const overIdx = parseInt(overItem.dataset.index, 10);
-          if (!isNaN(overIdx) && modalTouchStartIndex !== null && modalTouchStartIndex !== overIdx) {
-            applyCategoryReorder(modalTouchStartIndex, overIdx, false);
-            modalTouchStartIndex = overIdx;
-          }
-        }
-      }, { passive: false });
-
-      const finishTouch = () => {
-        if (modalTouchHoldTimer) {
-          clearTimeout(modalTouchHoldTimer);
-          modalTouchHoldTimer = null;
-        }
-        if (modalIsTouchDragActive && modalTouchDraggingEl) {
-          modalTouchDraggingEl.classList.remove('opacity-60', 'ring-2', 'ring-blue-500', 'scale-[1.02]', 'shadow-lg');
-          renderCategorySortModalList();
-          renderDictionaryView(document.getElementById('dictSearchInput')?.value || '');
-          renderHomeCategoryTabs();
-          renderHomeView(document.getElementById('homeSearchInput')?.value || '');
-        }
-        modalTouchDraggingEl = null;
-        modalTouchStartIndex = null;
-        modalIsTouchDragActive = false;
+        if (drag.active) e.preventDefault();
       };
-
-      grip.addEventListener('touchend', finishTouch);
-      grip.addEventListener('touchcancel', finishTouch);
+      listContainer.onpointerup = e => {
+        if (categorySortDrag?.pointerId === e.pointerId) finishCategorySortDrag(true);
+      };
+      const cancel = e => {
+        if (categorySortDrag?.pointerId === e.pointerId) finishCategorySortDrag(false);
+      };
+      listContainer.onpointercancel = cancel;
+      listContainer.onlostpointercapture = e => {
+        if (e.target === listContainer) cancel(e);
+      };
     }
 
     async function applyCategoryReorder(fromIndex, toIndex, reRender = true) {
@@ -2947,7 +2968,6 @@
               title="${dateKey} (有 ${records.length} 筆紀錄，點擊查看)"
             >
               <span>${day}</span>
-              <span class="w-1 h-1 rounded-full ${isSelected ? 'bg-blue-400 dark:bg-blue-600' : 'bg-blue-500 dark:bg-blue-400'} mt-0.5"></span>
             </button>
           `;
         } else if (isToday) {
