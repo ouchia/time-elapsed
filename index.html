@@ -1775,13 +1775,11 @@
       const startDayOfWeek = firstDayOfMonth.getDay();
 
       const activeDaysMap = {};
-      const notesMap = {};
       (activity.history || []).forEach(rec => {
         const d = new Date(rec.timestamp);
         if (d.getFullYear() === year && d.getMonth() === month) {
           const dateNum = d.getDate();
           activeDaysMap[dateNum] = (activeDaysMap[dateNum] || 0) + 1;
-          if (rec.note) notesMap[dateNum] = true;
         }
       });
 
@@ -1798,7 +1796,6 @@
 
       for (let day = 1; day <= daysInMonth; day++) {
         const hasDone = activeDaysMap[day] > 0;
-        const hasNote = notesMap[day];
         const isToday = isCurrentMonth && day === todayDate;
         
         let cellButton = '';
@@ -1806,11 +1803,10 @@
           cellButton = `
             <button 
               onclick="event.stopPropagation(); openDateActionModal('${activity.id}', ${year}, ${month}, ${day})"
-              class="relative w-6 h-6 rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold flex items-center justify-center text-xs hover:scale-110 transition active:scale-95 shadow-sm"
+              class="relative w-[22px] h-[22px] rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold flex items-center justify-center text-xs hover:scale-110 transition active:scale-95 shadow-sm"
               title="${year}/${month + 1}/${day} (已記錄 ${activeDaysMap[day]} 次，點擊修改/刪除/補登)"
             >
               ${day}
-              ${hasNote ? '<span class="absolute -bottom-0.5 w-1 h-1 rounded-full bg-neutral-400"></span>' : ''}
             </button>
           `;
         } else if (isToday) {
@@ -2960,7 +2956,7 @@
             <button 
               type="button"
               onclick="selectReportCalendarDate(${year}, ${month}, ${day})"
-              class="relative w-7 h-7 rounded-full flex flex-col items-center justify-center text-xs font-bold transition active:scale-95 ${
+              class="relative w-6 h-6 rounded-full flex flex-col items-center justify-center text-xs font-bold transition active:scale-95 ${
                 isSelected 
                   ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 ring-2 ring-blue-500 shadow-md' 
                   : 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 hover:opacity-90 shadow-xs'
@@ -2972,31 +2968,21 @@
           `;
         } else if (isToday) {
           cellBtn = `
-            <button 
-              type="button"
-              onclick="selectReportCalendarDate(${year}, ${month}, ${day})"
-              class="w-7 h-7 rounded-full border border-blue-500 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center text-xs transition active:scale-95 ${
-                isSelected ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/40' : ''
-              }"
-              title="${dateKey} (今日)"
+            <span
+              class="w-7 h-7 rounded-full border border-blue-500 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center text-xs"
+              title="${dateKey} (今日，無紀錄)"
             >
               ${day}
-            </button>
+            </span>
           `;
         } else {
           cellBtn = `
-            <button 
-              type="button"
-              onclick="selectReportCalendarDate(${year}, ${month}, ${day})"
-              class="w-7 h-7 flex items-center justify-center text-xs rounded-full transition active:scale-95 ${
-                isSelected 
-                  ? 'ring-2 ring-blue-500 bg-neutral-200 dark:bg-neutral-800 text-neutral-900 dark:text-white font-bold' 
-                  : 'text-neutral-400 dark:text-neutral-600 font-medium hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50'
-              }"
-              title="${dateKey}"
+            <span
+              class="w-7 h-7 flex items-center justify-center text-xs text-neutral-400 dark:text-neutral-600 font-medium"
+              title="${dateKey} (無紀錄)"
             >
               ${day}
-            </button>
+            </span>
           `;
         }
 
