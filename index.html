@@ -39,6 +39,11 @@
     input, textarea {
       user-select: text;
     }
+    input[type="search"]::-webkit-search-cancel-button,
+    input[type="search"]::-webkit-search-decoration {
+      -webkit-appearance: none;
+      appearance: none;
+    }
     .no-scrollbar::-webkit-scrollbar {
       display: none;
     }
@@ -179,8 +184,11 @@
             type="search" 
             id="dictSearchInput" 
             placeholder="搜尋事項或分類..." 
-            class="w-full bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-xs pl-8 pr-3 py-2 rounded-xl border border-transparent focus:border-neutral-400 dark:focus:border-neutral-700 focus:outline-none transition"
+            class="w-full bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-xs pl-8 pr-8 py-2 rounded-xl border border-transparent focus:border-neutral-400 dark:focus:border-neutral-700 focus:outline-none transition"
           />
+          <button id="clearDictSearchBtn" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600">
+            <i class="ph ph-x-circle text-sm"></i>
+          </button>
         </div>
 
         <!-- Panel 1: Active Items -->
@@ -241,6 +249,34 @@
 
       <!-- VIEW 3: REPORT -->
       <section id="viewReport" class="space-y-4 hidden view-transition">
+        <!-- Keyword Search Bar for Executed Days -->
+        <div class="space-y-2">
+          <div class="relative">
+            <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm"></i>
+            <input 
+              type="search" 
+              id="reportSearchInput" 
+              placeholder="搜尋項目、分類或備註，檢視相關日子..." 
+              class="w-full bg-neutral-100 dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-xs pl-8 pr-8 py-2 rounded-xl border border-transparent focus:border-neutral-400 dark:focus:border-neutral-700 focus:outline-none transition"
+            />
+            <button id="clearReportSearchBtn" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600">
+              <i class="ph ph-x-circle text-sm"></i>
+            </button>
+          </div>
+
+          <!-- Search Results Panel (Shown when keyword entered) -->
+          <div id="reportSearchResultBox" class="hidden p-3 rounded-2xl border border-blue-200/80 dark:border-blue-900/60 bg-blue-50/40 dark:bg-blue-950/20 space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5">
+                <i class="ph ph-calendar-check text-blue-600 dark:text-blue-400"></i>
+                <span id="reportSearchResultTitle">相關日子</span>
+              </span>
+              <span id="reportSearchResultBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold">0 天</span>
+            </div>
+            <div id="reportSearchResultList" class="space-y-1.5 max-h-64 overflow-y-auto no-scrollbar"></div>
+          </div>
+        </div>
+
         <!-- Period Switch Tabs -->
         <div class="bg-neutral-100 dark:bg-neutral-900 p-1 rounded-xl flex items-center justify-between text-xs font-semibold">
           <button class="report-period-tab flex-1 py-1.5 rounded-lg text-center transition bg-white dark:bg-white text-neutral-950 dark:text-neutral-950 shadow-sm font-bold" data-period="day">今日</button>
@@ -268,7 +304,7 @@
           </div>
         </div>
 
-        <!-- Filterable Calendar (By Category / By Item) without Heatmap -->
+        <!-- Filterable Calendar (By Category / By Item) -->
         <div class="p-3 bg-neutral-50 dark:bg-neutral-900/60 rounded-2xl border border-neutral-200/70 dark:border-neutral-800 space-y-2.5">
           <div class="flex items-center justify-between">
             <div class="inline-flex bg-neutral-200/80 dark:bg-neutral-800 p-0.5 rounded-lg text-xs font-semibold">
@@ -395,7 +431,7 @@
 
     </main>
 
-    <!-- MODAL: EDIT NAME (ITEM OR CATEGORY) -->
+    <!-- MODAL: EDIT NAME & CUSTOM COLOR (ITEM OR CATEGORY) -->
     <div id="editNameModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
       <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-5 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3.5">
         <div class="flex items-center justify-between pb-1 border-b border-neutral-100 dark:border-neutral-800">
@@ -412,6 +448,41 @@
             placeholder="請輸入名稱..." 
             class="w-full bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 text-xs px-3 py-2 rounded-xl border border-transparent focus:border-neutral-400 dark:focus:border-neutral-600 focus:outline-none"
           />
+        </div>
+        <!-- Color Section (Shown only when editing an item) -->
+        <div id="editItemColorSection" class="space-y-2.5 hidden pt-1.5 border-t border-neutral-100 dark:border-neutral-800">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <label class="text-[11px] text-neutral-400 font-medium">標記顏色</label>
+              <span id="editItemColorPreviewText" class="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">預設</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" id="deleteCustomColorBtn" onclick="deleteSelectedCustomColor()" class="hidden text-[10px] text-red-500 hover:text-red-600 font-medium">刪除色票</button>
+              <button type="button" onclick="selectItemColorPreset('')" class="text-[10px] text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 underline">重設</button>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 flex-wrap" id="editItemColorSwatches"></div>
+          <div class="flex items-center gap-1.5 pt-0.5">
+            <label class="relative w-5 h-5 rounded-full overflow-hidden border border-neutral-300 dark:border-neutral-600 flex-shrink-0 cursor-pointer shadow-xs" title="點擊開啟色盤">
+              <input type="color" id="editItemCustomColorPicker" value="#039BE5" oninput="handleColorPickerInput(this.value)" class="absolute -inset-2 w-9 h-9 cursor-pointer border-0 bg-transparent p-0" />
+            </label>
+            <input 
+              type="text" 
+              id="editItemHexInput" 
+              maxlength="7"
+              placeholder="#039BE5" 
+              oninput="handleHexColorInput(this.value)"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();saveCustomColorSwatch();}"
+              class="flex-1 min-w-0 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-mono text-[11px] px-2.5 py-1 rounded-lg border border-transparent focus:border-neutral-400 dark:focus:border-neutral-600 focus:outline-none uppercase"
+            />
+            <button 
+              type="button" 
+              onclick="saveCustomColorSwatch()" 
+              class="px-2.5 py-1 rounded-lg bg-neutral-200/80 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-[11px] font-semibold transition whitespace-nowrap flex-shrink-0"
+            >
+              加入色票
+            </button>
+          </div>
         </div>
         <div class="flex gap-2 pt-1">
           <button onclick="closeEditNameModal()" class="flex-1 py-2 text-xs font-semibold rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
@@ -660,8 +731,24 @@
 
     const VIEW_ORDER = ['home', 'dictionary', 'report'];
 
+    // Google Calendar 11 standard event colors
+    const GOOGLE_CALENDAR_COLORS = [
+      { name: '番茄紅', hex: '#D50000' },
+      { name: '紅鶴粉', hex: '#E67C73' },
+      { name: '橘子澄', hex: '#F4511E' },
+      { name: '香蕉黃', hex: '#F6BF26' },
+      { name: '鼠尾草綠', hex: '#33B679' },
+      { name: '羅勒綠', hex: '#0B8043' },
+      { name: '孔雀藍', hex: '#039BE5' },
+      { name: '藍莓藍', hex: '#3F51B5' },
+      { name: '薰衣草紫', hex: '#7986CB' },
+      { name: '葡萄紫', hex: '#8E24AA' },
+      { name: '石墨灰', hex: '#616161' }
+    ];
+
     let activities = [];
     let categories = []; 
+    let customColors = [];
     let currentView = 'home';
     let dictSubTab = 'items';
     let selectedHomeCategory = 'ALL'; 
@@ -686,7 +773,8 @@
 
     let editNameState = {
       type: null,
-      id: null
+      id: null,
+      color: ''
     };
 
     const DEFAULT_CATEGORIES = ['保健食品', '大掃除', '身體健康', '居家生活'];
@@ -699,6 +787,32 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    function linkifyText(str) {
+      if (!str) return '';
+      const escaped = escapeHTML(str);
+      const urlRegex = /(https?:\/\/[^\s<>"']+)/g;
+      return escaped.replace(urlRegex, (url) => {
+        return `<a href="${url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="text-blue-600 dark:text-blue-400 underline break-all hover:opacity-80">${url}</a>`;
+      });
+    }
+
+    function getContrastTextColor(hexColor) {
+      if (!hexColor || !/^#[0-9A-Fa-f]{6}$/.test(hexColor)) return '#ffffff';
+      const r = parseInt(hexColor.slice(1, 3), 16);
+      const g = parseInt(hexColor.slice(3, 5), 16);
+      const b = parseInt(hexColor.slice(5, 7), 16);
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance > 0.62 ? '#0a0a0a' : '#ffffff';
+    }
+
+    function hexToRgba(hexColor, alpha = 0.25) {
+      if (!hexColor || !/^#[0-9A-Fa-f]{6}$/.test(hexColor)) return `rgba(3, 155, 229, ${alpha})`;
+      const r = parseInt(hexColor.slice(1, 3), 16);
+      const g = parseInt(hexColor.slice(3, 5), 16);
+      const b = parseInt(hexColor.slice(5, 7), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     }
 
     function autoResizeTextarea(el) {
@@ -853,7 +967,6 @@
       container.addEventListener('touchstart', (e) => {
         if (e.touches.length !== 1) return;
         
-        // 全域排除所有具備橫向滾動特性之容器、分類標籤列、河道照片列以及表單輸入欄位，避免滑動時誤觸換頁判定
         if (
           e.target.closest('.overflow-x-auto') ||
           e.target.closest('.touch-pan-x') ||
@@ -908,8 +1021,8 @@
       try {
         let idbActivities = await idbGet('activities');
         let idbCategories = await idbGet('categories');
+        let idbCustomColors = await idbGet('customColors');
 
-        // 自動平滑遷移：若 IndexedDB 無資料但 LocalStorage 存在舊資料，自動轉移至 IndexedDB
         if (!idbActivities) {
           try {
             const legacyRaw = localStorage.getItem(STORAGE_KEY);
@@ -935,6 +1048,7 @@
             if (!item.categories) item.categories = item.category ? [item.category] : [];
             delete item.category;
             if (typeof item.isArchived !== 'boolean') item.isArchived = false;
+            if (typeof item.color !== 'string') item.color = '';
             if (item.history) {
               item.history = item.history.map(h => ({ ...h, note: h.note || '', image: h.image || '' }));
             }
@@ -951,10 +1065,17 @@
           categories = [...DEFAULT_CATEGORIES];
           await saveCategories();
         }
+
+        if (Array.isArray(idbCustomColors)) {
+          customColors = idbCustomColors;
+        } else {
+          customColors = [];
+        }
       } catch (e) {
         console.error("載入資料失敗", e);
         activities = [];
         categories = [...DEFAULT_CATEGORIES];
+        customColors = [];
       }
     }
 
@@ -971,6 +1092,14 @@
         await idbSet('categories', categories);
       } catch (e) {
         showToast("分類存入 IndexedDB 失敗", "ph-warning");
+      }
+    }
+
+    async function saveCustomColors() {
+      try {
+        await idbSet('customColors', customColors);
+      } catch (e) {
+        showToast("色票存入 IndexedDB 失敗", "ph-warning");
       }
     }
 
@@ -1139,7 +1268,7 @@
       renderHomeView(document.getElementById('homeSearchInput')?.value || '');
     }
 
-    // --- DATE ACTION MODAL (EDIT & LOCK WORKFLOW + CONDITIONAL BACKLOG MODULE) ---
+    // --- DATE ACTION MODAL (EDIT & LOCK WORKFLOW + HYPERLINK SUPPORT + CONDITIONAL BACKLOG MODULE) ---
     function revealModalBacklog() {
       const btn = document.getElementById('modal-open-backlog-btn');
       const block = document.getElementById('modalBacklogBlock');
@@ -1210,6 +1339,10 @@
             </div>
           ` : `<div id="record-img-wrap-${rec.id}" class="mt-1"></div>`;
 
+          const noteDisplayHTML = rec.note
+            ? linkifyText(rec.note)
+            : '<span class="text-neutral-400">無備註</span>';
+
           row.innerHTML = `
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-1.5" id="time-container-${rec.id}">
@@ -1235,12 +1368,16 @@
 
             <div class="space-y-1">
               <div class="flex items-start gap-1.5" id="note-container-${rec.id}">
+                <div 
+                  id="note-display-${rec.id}" 
+                  class="flex-1 text-xs py-1 px-1 text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap break-words select-text"
+                >${noteDisplayHTML}</div>
                 <textarea 
                   id="note-input-${rec.id}" 
                   rows="1"
-                  placeholder="無備註" 
+                  placeholder="輸入備註內容或貼上網址..." 
                   readonly
-                  class="flex-1 text-xs py-1 px-1 rounded-xl bg-transparent text-neutral-700 dark:text-neutral-300 border-none outline-none shadow-none cursor-default select-none resize-none leading-relaxed transition whitespace-pre-wrap break-words"
+                  class="hidden flex-1 text-xs px-2.5 py-1.5 rounded-xl bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 resize-none leading-relaxed transition"
                   oninput="autoResizeTextarea(this)"
                 >${escapeHTML(rec.note || '')}</textarea>
                 <div class="flex items-center gap-1 flex-shrink-0">
@@ -1266,11 +1403,6 @@
             </div>
           `;
           listEl.appendChild(row);
-
-          setTimeout(() => {
-            const ta = document.getElementById(`note-input-${rec.id}`);
-            if (ta) autoResizeTextarea(ta);
-          }, 0);
         });
 
         // 當日已有紀錄時，加入「新增一筆」按鈕
@@ -1314,7 +1446,7 @@
             <textarea 
               id="modal-backlog-note" 
               rows="1"
-              placeholder="新增備註 (選填)..." 
+              placeholder="新增備註或網址 (選填)..." 
               class="flex-1 min-w-0 text-xs bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-2.5 py-1.5 rounded-xl border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 resize-none transition leading-relaxed"
               oninput="autoResizeTextarea(this)"
             ></textarea>
@@ -1430,6 +1562,7 @@
     }
 
     async function toggleRecordEditState(activityId, recordId) {
+      const displayDiv = document.getElementById(`note-display-${recordId}`);
       const input = document.getElementById(`note-input-${recordId}`);
       const btn = document.getElementById(`note-action-btn-${recordId}`);
       const timeDisplay = document.getElementById(`time-display-${recordId}`);
@@ -1446,9 +1579,9 @@
       const isReadOnly = input.hasAttribute('readonly');
 
       if (isReadOnly) {
+        if (displayDiv) displayDiv.classList.add('hidden');
+        input.classList.remove('hidden');
         input.removeAttribute('readonly');
-        input.placeholder = "輸入備註內容...";
-        input.className = "flex-1 text-xs px-2.5 py-1.5 rounded-xl bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 resize-none leading-relaxed transition";
         autoResizeTextarea(input);
         
         if (timeDisplay && timeInput) {
@@ -1480,8 +1613,11 @@
         await saveData();
 
         input.setAttribute('readonly', 'true');
-        input.className = "flex-1 text-xs py-1 px-1 rounded-xl bg-transparent text-neutral-700 dark:text-neutral-300 border-none outline-none shadow-none cursor-default select-none resize-none leading-relaxed transition whitespace-pre-wrap break-words";
-        autoResizeTextarea(input);
+        input.classList.add('hidden');
+        if (displayDiv) {
+          displayDiv.innerHTML = rec.note ? linkifyText(rec.note) : '<span class="text-neutral-400">無備註</span>';
+          displayDiv.classList.remove('hidden');
+        }
         
         if (timeDisplay && timeInput) {
           timeDisplay.innerText = formatTimeOnly(rec.timestamp);
@@ -1564,15 +1700,17 @@
 
       const modal = document.getElementById('itemCategoryModal');
       const titleEl = document.getElementById('catModalTitle');
-      titleEl.innerText = activity.name;
+      if (titleEl) titleEl.innerText = activity.name;
 
       renderItemCategoryModalChips();
-      modal.classList.remove('hidden');
+      if (modal) modal.classList.remove('hidden');
     }
 
     function closeItemCategoryModal() {
       activeCatModalActivityId = null;
-      document.getElementById('itemCategoryModal').classList.add('hidden');
+      const modal = document.getElementById('itemCategoryModal');
+      if (modal) modal.classList.add('hidden');
+      refreshAll();
     }
 
     function renderItemCategoryModalChips() {
@@ -1591,6 +1729,7 @@
       categories.forEach(cat => {
         const isAssigned = (activity.categories || []).includes(cat);
         const btn = document.createElement('button');
+        btn.type = 'button';
         btn.className = `text-xs px-3 py-1.5 rounded-xl border transition-all duration-150 flex items-center gap-1.5 ${
           isAssigned 
             ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 border-neutral-900 dark:border-white font-bold shadow-sm' 
@@ -1621,8 +1760,10 @@
       renderItemCategoryModalChips();
       
       const homeSearch = document.getElementById('homeSearchInput')?.value || '';
+      const dictSearch = document.getElementById('dictSearchInput')?.value || '';
       renderHomeCategoryTabs();
       renderHomeView(homeSearch);
+      renderDictionaryView(dictSearch);
     }
 
     async function addCategoryFromModal() {
@@ -1635,9 +1776,12 @@
       }
       if (activeCatModalActivityId) {
         const act = activities.find(a => a.id === activeCatModalActivityId);
-        if (act && !(act.categories || []).includes(val)) {
-          act.categories.push(val);
-          await saveData();
+        if (act) {
+          if (!Array.isArray(act.categories)) act.categories = [];
+          if (!act.categories.includes(val)) {
+            act.categories.push(val);
+            await saveData();
+          }
         }
       }
       if (input) input.value = '';
@@ -1646,23 +1790,146 @@
       showToast(`已建立分類「${val}」`);
     }
 
-    // --- EDIT NAME (ITEM OR CATEGORY) MODAL ---
+    // --- EDIT NAME & CUSTOM COLORS (ITEM OR CATEGORY) MODAL ---
+    function normalizeHexColor(raw) {
+      if (!raw) return null;
+      let val = raw.trim();
+      if (!val.startsWith('#')) val = '#' + val;
+      if (/^#[0-9A-Fa-f]{3}$/.test(val)) {
+        val = '#' + val[1] + val[1] + val[2] + val[2] + val[3] + val[3];
+      }
+      if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+        return val.toUpperCase();
+      }
+      return null;
+    }
+
+    function renderEditItemColorSwatches(syncHexInput = true) {
+      const container = document.getElementById('editItemColorSwatches');
+      const picker = document.getElementById('editItemCustomColorPicker');
+      const hexInput = document.getElementById('editItemHexInput');
+      const previewText = document.getElementById('editItemColorPreviewText');
+      const deleteBtn = document.getElementById('deleteCustomColorBtn');
+      if (!container) return;
+
+      container.innerHTML = '';
+      const currentColor = editNameState.color || '';
+
+      const allSwatches = [
+        ...GOOGLE_CALENDAR_COLORS.map(c => ({ ...c, isCustom: false })),
+        ...customColors.map(hex => ({ name: hex, hex, isCustom: true }))
+      ];
+
+      allSwatches.forEach(item => {
+        const isSelected = currentColor.toLowerCase() === item.hex.toLowerCase();
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.title = item.name;
+        btn.className = `w-5 h-5 rounded-full flex items-center justify-center transition transform active:scale-90 ${
+          isSelected ? 'ring-2 ring-offset-2 ring-neutral-900 dark:ring-white dark:ring-offset-neutral-900 scale-110' : 'hover:scale-105'
+        }`;
+        btn.style.backgroundColor = item.hex;
+        btn.innerHTML = isSelected ? `<i class="ph ph-check text-[10px] font-bold" style="color:${getContrastTextColor(item.hex)}"></i>` : '';
+        btn.onclick = () => selectItemColorPreset(item.hex);
+        container.appendChild(btn);
+      });
+
+      if (picker && /^#[0-9A-Fa-f]{6}$/.test(currentColor)) {
+        picker.value = currentColor;
+      }
+      if (hexInput && syncHexInput) {
+        hexInput.value = currentColor ? currentColor.toUpperCase() : '';
+      }
+
+      const isCustomSelected = currentColor && customColors.some(c => c.toLowerCase() === currentColor.toLowerCase());
+      if (deleteBtn) {
+        deleteBtn.classList.toggle('hidden', !isCustomSelected);
+      }
+
+      if (previewText) {
+        if (currentColor) {
+          const matchedGCal = GOOGLE_CALENDAR_COLORS.find(c => c.hex.toLowerCase() === currentColor.toLowerCase());
+          const labelName = matchedGCal ? matchedGCal.name : currentColor.toUpperCase();
+          previewText.innerHTML = `<span class="inline-block w-2 h-2 rounded-full align-middle mr-1" style="background-color:${currentColor}"></span>${labelName}`;
+        } else {
+          previewText.innerText = '預設';
+        }
+      }
+    }
+
+    function selectItemColorPreset(hex) {
+      editNameState.color = hex ? hex.toUpperCase() : '';
+      renderEditItemColorSwatches(true);
+    }
+
+    function handleColorPickerInput(hex) {
+      editNameState.color = hex ? hex.toUpperCase() : '';
+      renderEditItemColorSwatches(true);
+    }
+
+    function handleHexColorInput(raw) {
+      const normalized = normalizeHexColor(raw);
+      if (normalized) {
+        editNameState.color = normalized;
+        renderEditItemColorSwatches(false);
+      }
+    }
+
+    async function saveCustomColorSwatch() {
+      const hexInput = document.getElementById('editItemHexInput');
+      const normalized = normalizeHexColor(hexInput ? hexInput.value : editNameState.color);
+      if (!normalized) {
+        showToast("請輸入有效色號 (如 #3B82F6)", "ph-warning");
+        return;
+      }
+
+      const existsInPreset = GOOGLE_CALENDAR_COLORS.some(c => c.hex.toLowerCase() === normalized.toLowerCase());
+      const existsInCustom = customColors.some(c => c.toLowerCase() === normalized.toLowerCase());
+
+      editNameState.color = normalized;
+      if (existsInPreset || existsInCustom) {
+        renderEditItemColorSwatches(true);
+        showToast("此色票已存在");
+        return;
+      }
+
+      customColors.push(normalized);
+      await saveCustomColors();
+      renderEditItemColorSwatches(true);
+      showToast(`已加入色票 ${normalized}`);
+    }
+
+    async function deleteSelectedCustomColor() {
+      const currentColor = editNameState.color || '';
+      if (!currentColor) return;
+      customColors = customColors.filter(c => c.toLowerCase() !== currentColor.toLowerCase());
+      await saveCustomColors();
+      editNameState.color = '';
+      renderEditItemColorSwatches(true);
+      showToast("已刪除自訂色票");
+    }
+
     function openEditItemNameModal(activityId) {
       const act = activities.find(a => a.id === activityId);
       if (!act) return;
 
       editNameState = {
         type: 'item',
-        id: activityId
+        id: activityId,
+        color: act.color || ''
       };
 
       const modal = document.getElementById('editNameModal');
       const titleEl = document.getElementById('editNameModalTitle');
       const labelEl = document.getElementById('editNameModalLabel');
       const input = document.getElementById('editNameInput');
+      const colorSection = document.getElementById('editItemColorSection');
 
-      if (titleEl) titleEl.innerText = "編輯項目名稱";
-      if (labelEl) labelEl.innerText = "修改追蹤項目名稱";
+      if (titleEl) titleEl.innerText = "編輯項目設定";
+      if (labelEl) labelEl.innerText = "追蹤項目名稱";
+      if (colorSection) colorSection.classList.remove('hidden');
+      renderEditItemColorSwatches();
+
       if (input) {
         input.value = act.name;
         input.focus();
@@ -1674,16 +1941,19 @@
     function openEditCategoryNameModal(oldCatName) {
       editNameState = {
         type: 'category',
-        id: oldCatName
+        id: oldCatName,
+        color: ''
       };
 
       const modal = document.getElementById('editNameModal');
       const titleEl = document.getElementById('editNameModalTitle');
       const labelEl = document.getElementById('editNameModalLabel');
       const input = document.getElementById('editNameInput');
+      const colorSection = document.getElementById('editItemColorSection');
 
       if (titleEl) titleEl.innerText = "編輯分類名稱";
       if (labelEl) labelEl.innerText = "修改分類名稱（將同步更新所屬項目）";
+      if (colorSection) colorSection.classList.add('hidden');
       if (input) {
         input.value = oldCatName;
         input.focus();
@@ -1693,7 +1963,7 @@
     }
 
     function closeEditNameModal() {
-      editNameState = { type: null, id: null };
+      editNameState = { type: null, id: null, color: '' };
       document.getElementById('editNameModal').classList.add('hidden');
     }
 
@@ -1709,11 +1979,6 @@
         const act = activities.find(a => a.id === editNameState.id);
         if (!act) return;
 
-        if (act.name === newName) {
-          closeEditNameModal();
-          return;
-        }
-
         const exists = activities.some(a => a.id !== act.id && a.name.toLowerCase() === newName.toLowerCase());
         if (exists) {
           showToast("已有同名的追蹤事項", "ph-warning");
@@ -1722,10 +1987,15 @@
 
         const oldName = act.name;
         act.name = newName;
+        act.color = editNameState.color || '';
         await saveData();
         closeEditNameModal();
         refreshAll();
-        showToast(`已將「${oldName}」重新命名為「${newName}」`);
+        if (oldName !== newName) {
+          showToast(`已更新「${newName}」設定`);
+        } else {
+          showToast(`已更新「${newName}」顏色設定`);
+        }
 
       } else if (editNameState.type === 'category') {
         const oldCatName = editNameState.id;
@@ -1757,6 +2027,9 @@
 
         if (selectedHomeCategory === oldCatName) {
           selectedHomeCategory = newName;
+        }
+        if (reportSelectedCalCategory === oldCatName) {
+          reportSelectedCalCategory = newName;
         }
 
         closeEditNameModal();
@@ -1794,16 +2067,22 @@
         cellsHTML += `<div class="h-7"></div>`;
       }
 
+      const customColor = activity.color || '';
+      const customText = customColor ? getContrastTextColor(customColor) : '';
+
       for (let day = 1; day <= daysInMonth; day++) {
         const hasDone = activeDaysMap[day] > 0;
         const isToday = isCurrentMonth && day === todayDate;
         
         let cellButton = '';
         if (hasDone) {
+          const styleAttr = customColor ? `style="background-color: ${customColor}; color: ${customText};"` : '';
+          const colorCls = customColor ? '' : 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950';
           cellButton = `
             <button 
               onclick="event.stopPropagation(); openDateActionModal('${activity.id}', ${year}, ${month}, ${day})"
-              class="relative w-[22px] h-[22px] rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold flex items-center justify-center text-xs hover:scale-110 transition active:scale-95 shadow-sm"
+              ${styleAttr}
+              class="relative w-[22px] h-[22px] rounded-full ${colorCls} font-bold flex items-center justify-center text-xs hover:scale-110 transition active:scale-95 shadow-sm"
               title="${year}/${month + 1}/${day} (已記錄 ${activeDaysMap[day]} 次，點擊修改/刪除/補登)"
             >
               ${day}
@@ -1897,6 +2176,7 @@
         id: 'act-' + Date.now(),
         name: clean,
         categories: initialCategories,
+        color: '',
         isArchived: false,
         targetIntervalDays: null,
         history: [
@@ -2045,7 +2325,6 @@
         if (emptyState) emptyState.classList.add('hidden');
       }
 
-      // 計算本週時間區間（週一 00:00:00 至週日 23:59:59）
       const now = new Date();
       const currentDay = now.getDay() || 7;
       const weekStartDate = new Date(now);
@@ -2064,11 +2343,11 @@
         const overdue = isOverdue(activity);
         const isDoneToday = latestTime >= todayStartTime;
         const isExpanded = expandedItemId === activity.id;
+        const customColor = activity.color || '';
 
         const latestRecord = activity.history && activity.history.length > 0 ? activity.history[0] : null;
         const latestNote = latestRecord && latestRecord.note ? latestRecord.note.trim() : '';
 
-        // 取出「本週內（週一~週日）」所有帶圖紀錄，最新的排前面
         const thisWeekImages = (activity.history || [])
           .filter(h => h.image && h.timestamp >= weekStartTime && h.timestamp <= weekEndTime)
           .sort((a, b) => b.timestamp - a.timestamp);
@@ -2082,7 +2361,12 @@
           : `<div class="absolute left-2.5 top-5 bottom-0 w-px bg-neutral-200 dark:border-neutral-800"></div>`;
 
         let dotHTML = '';
-        if (isDoneToday) {
+        if (customColor) {
+          const ringStyle = isDoneToday
+            ? `background-color: ${customColor}; box-shadow: 0 0 0 4px ${hexToRgba(customColor, 0.25)};`
+            : `background-color: ${customColor};`;
+          dotHTML = `<div class="absolute left-1.5 top-3.5 w-2.5 h-2.5 rounded-full transition-all" style="${ringStyle}"></div>`;
+        } else if (isDoneToday) {
           dotHTML = `<div class="absolute left-1.5 top-3.5 w-2.5 h-2.5 rounded-full bg-blue-600 dark:bg-blue-400 ring-4 ring-blue-100 dark:ring-blue-950 transition-all"></div>`;
         } else if (overdue) {
           dotHTML = `<div class="absolute left-1.5 top-3.5 w-2.5 h-2.5 rounded-full bg-neutral-950 dark:bg-white ring-4 ring-neutral-200 dark:ring-neutral-800 transition-all"></div>`;
@@ -2172,7 +2456,7 @@
 
                 ${latestNote ? `
                   <div class="mt-1 text-xs text-neutral-400 dark:text-neutral-500 font-sans break-words whitespace-normal leading-normal">
-                    ${escapeHTML(latestNote)}
+                    ${linkifyText(latestNote)}
                   </div>
                 ` : ''}
 
@@ -2300,6 +2584,10 @@
 
     function renderDictionaryView(filterQuery = '') {
       const q = filterQuery.trim().toLowerCase();
+      const clearDictBtn = document.getElementById('clearDictSearchBtn');
+      if (clearDictBtn) {
+        clearDictBtn.classList.toggle('hidden', !q);
+      }
 
       // 1. Panel: Items (Active)
       const activeList = document.getElementById('dictActiveList');
@@ -2333,10 +2621,14 @@
               : '<span class="text-[10px] text-neutral-400">無分類</span>';
 
             const latestTime = getLatestTimestamp(item);
+            const colorDot = item.color
+              ? `<span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${item.color};"></span>`
+              : '';
 
             row.innerHTML = `
               <div class="min-w-0 flex-1 space-y-1">
                 <div class="flex items-center gap-1.5 flex-wrap">
+                  ${colorDot}
                   <span class="font-bold text-xs text-neutral-900 dark:text-neutral-100">${escapeHTML(item.name)}</span>
                   ${catPills}
                 </div>
@@ -2350,7 +2642,7 @@
                 <button 
                   onclick="openEditItemNameModal('${item.id}')"
                   class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
-                  title="編輯項目名稱"
+                  title="編輯項目名稱與顏色"
                 >
                   <i class="ph ph-pencil-simple text-sm"></i>
                 </button>
@@ -2425,10 +2717,11 @@
                   </button>
                 </div>
               </div>
-              <div class="flex items-gap-1 flex-wrap">
+              <div class="flex items-center gap-1 flex-wrap">
                 ${linkedActivities.length > 0 
                   ? linkedActivities.map(a => `
-                      <span class="text-[11px] px-2 py-0.5 rounded-md bg-white dark:bg-neutral-800 border border-neutral-200/70 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300">
+                      <span class="text-[11px] px-2 py-0.5 rounded-md bg-white dark:bg-neutral-800 border border-neutral-200/70 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 inline-flex items-center gap-1">
+                        ${a.color ? `<span class="w-1.5 h-1.5 rounded-full" style="background-color:${a.color}"></span>` : ''}
                         ${escapeHTML(a.name)}
                       </span>
                     `).join('')
@@ -2462,12 +2755,23 @@
           archivedItems.forEach(item => {
             const row = document.createElement('div');
             row.className = "p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between gap-2 opacity-80";
+            const colorDot = item.color
+              ? `<span class="w-2 h-2 rounded-full flex-shrink-0" style="background-color: ${item.color};"></span>`
+              : '';
             
             row.innerHTML = `
-              <div class="min-w-0 flex-1">
-                <span class="font-bold text-xs text-neutral-800 dark:text-neutral-200">${escapeHTML(item.name)}</span>
+              <div class="min-w-0 flex-1 flex items-center gap-1.5">
+                ${colorDot}
+                <span class="font-bold text-xs text-neutral-800 dark:text-neutral-200 truncate">${escapeHTML(item.name)}</span>
               </div>
               <div class="flex items-center gap-1">
+                <button 
+                  onclick="openEditItemNameModal('${item.id}')"
+                  class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
+                  title="編輯項目名稱與顏色"
+                >
+                  <i class="ph ph-pencil-simple text-sm"></i>
+                </button>
                 <button 
                   onclick="toggleArchiveActivity('${item.id}')"
                   class="px-2.5 py-1 text-xs rounded-lg bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold transition flex items-center gap-1"
@@ -2546,7 +2850,6 @@
       const drag = categorySortDrag;
       if (!drag || !drag.active) return;
       const bounds = drag.list.getBoundingClientRect();
-      // Keep the floating copy under the finger, including outside the scroll area.
       drag.ghost.style.transform = `translate3d(${drag.x - drag.offsetX}px, ${drag.y - drag.offsetY}px, 0)`;
       const edge = Math.min(56, bounds.height / 3);
       let speed = 0;
@@ -2560,7 +2863,6 @@
       drag.lastFrame = now;
       drag.list.scrollTop += speed * 480 * elapsed / 1000;
 
-      // Move the placeholder in the actual list so the exact insertion slot is visible.
       const y = Math.max(bounds.top, Math.min(bounds.bottom, drag.y));
       const next = [...drag.list.children].find(row => {
         if (row === drag.item) return false;
@@ -2613,7 +2915,6 @@
           active: false, ghost: null, frame: null, holdTimer: null
         };
         categorySortDrag = drag;
-        // Capture on the stationary scroll container: moving the row must not lose the pointer.
         listContainer.setPointerCapture(e.pointerId);
         const start = () => {
           if (categorySortDrag !== drag) return;
@@ -2646,7 +2947,6 @@
         drag.x = e.clientX;
         drag.y = e.clientY;
         if (!drag.active && Math.hypot(drag.x - drag.startX, drag.y - drag.startY) > 8) {
-          // A swipe before the long press completes must never start sorting.
           finishCategorySortDrag(false);
           return;
         }
@@ -2686,10 +2986,136 @@
           }
         });
         if (selectedHomeCategory === catName) selectedHomeCategory = 'ALL';
+        if (reportSelectedCalCategory === catName) reportSelectedCalCategory = 'ALL';
         await saveCategories();
         await saveData();
         refreshAll();
         showToast("分類已刪除");
+      });
+    }
+
+    // --- REPORT KEYWORD SEARCH FOR EXECUTED DAYS ---
+    function renderReportSearchResults(query = '') {
+      const box = document.getElementById('reportSearchResultBox');
+      const titleEl = document.getElementById('reportSearchResultTitle');
+      const badgeEl = document.getElementById('reportSearchResultBadge');
+      const listEl = document.getElementById('reportSearchResultList');
+      const clearBtn = document.getElementById('clearReportSearchBtn');
+
+      if (!box || !listEl) return;
+
+      const q = query.trim().toLowerCase();
+      if (!q) {
+        box.classList.add('hidden');
+        if (clearBtn) clearBtn.classList.add('hidden');
+        listEl.innerHTML = '';
+        return;
+      }
+
+      if (clearBtn) clearBtn.classList.remove('hidden');
+      box.classList.remove('hidden');
+      listEl.innerHTML = '';
+
+      const dayGroups = {};
+      const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+
+      activities.forEach(act => {
+        const nameMatch = act.name.toLowerCase().includes(q);
+        const catMatch = (act.categories || []).some(c => c.toLowerCase().includes(q));
+
+        (act.history || []).forEach(h => {
+          const noteMatch = (h.note || '').toLowerCase().includes(q);
+          if (nameMatch || catMatch || noteMatch) {
+            const d = new Date(h.timestamp);
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            const dateKey = `${y}/${m}/${day}`;
+            const weekdayStr = `週${weekdays[d.getDay()]}`;
+
+            if (!dayGroups[dateKey]) {
+              dayGroups[dateKey] = {
+                dateKey,
+                year: y,
+                month: d.getMonth(),
+                day: d.getDate(),
+                dateLabel: `${dateKey} (${weekdayStr})`,
+                latestTs: h.timestamp,
+                records: []
+              };
+            }
+            if (h.timestamp > dayGroups[dateKey].latestTs) {
+              dayGroups[dateKey].latestTs = h.timestamp;
+            }
+            dayGroups[dateKey].records.push({
+              activityId: act.id,
+              activityName: act.name,
+              activityColor: act.color || '',
+              isArchived: !!act.isArchived,
+              timestamp: h.timestamp,
+              note: h.note || '',
+              image: h.image || ''
+            });
+          }
+        });
+      });
+
+      const sortedDateKeys = Object.keys(dayGroups).sort((a, b) => b.localeCompare(a));
+      if (titleEl) titleEl.innerText = `「${query.trim()}」相關日子`;
+      if (badgeEl) badgeEl.innerText = `${sortedDateKeys.length} 天`;
+
+      if (sortedDateKeys.length === 0) {
+        listEl.innerHTML = `<div class="py-4 text-center text-xs text-neutral-400">找不到相符的執行紀錄</div>`;
+        return;
+      }
+
+      sortedDateKeys.forEach(dateKey => {
+        const group = dayGroups[dateKey];
+        group.records.sort((a, b) => a.timestamp - b.timestamp);
+
+        const dayCard = document.createElement('div');
+        dayCard.className = "p-2.5 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200/80 dark:border-neutral-800 space-y-1.5";
+
+        const recordsHTML = group.records.map(rec => {
+          const archivedBadge = rec.isArchived
+            ? `<span class="text-[9px] px-1.5 py-0.2 rounded bg-neutral-100/80 dark:bg-neutral-800/50 text-neutral-400 dark:text-neutral-500 font-medium">已封存</span>`
+            : '';
+          const dotStyle = rec.activityColor ? `style="background-color:${rec.activityColor}"` : '';
+          const dotCls = rec.activityColor ? '' : 'bg-blue-600 dark:bg-blue-400';
+
+          return `
+            <div 
+              onclick="openDateActionModal('${rec.activityId}', ${group.year}, ${group.month}, ${group.day})"
+              class="pt-1.5 first:pt-0 border-t first:border-t-0 border-neutral-100 dark:border-neutral-800/80 cursor-pointer hover:opacity-80 transition space-y-0.5"
+            >
+              <div class="flex items-center justify-between gap-2 text-xs">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="w-1.5 h-1.5 rounded-full ${dotCls} flex-shrink-0" ${dotStyle}></span>
+                  <span class="font-bold text-neutral-900 dark:text-neutral-100 truncate">${escapeHTML(rec.activityName)}</span>
+                  ${archivedBadge}
+                </div>
+                <span class="font-mono text-[11px] text-neutral-400 flex-shrink-0">${formatTimeOnly(rec.timestamp)}</span>
+              </div>
+              ${rec.note ? `<p class="text-[11px] text-neutral-500 dark:text-neutral-400 whitespace-pre-line break-words pl-3">${linkifyText(rec.note)}</p>` : ''}
+              ${rec.image ? `
+                <div class="pl-3 pt-0.5" onclick="event.stopPropagation()">
+                  <img src="${rec.image}" alt="縮圖" onclick="openImagePreviewModal(this.src)" class="w-10 h-10 object-cover rounded-lg border border-neutral-200 dark:border-neutral-700 cursor-pointer shadow-xs hover:opacity-90" />
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('');
+
+        dayCard.innerHTML = `
+          <div class="flex items-center justify-between text-[11px] font-bold text-blue-600 dark:text-blue-400 pb-0.5">
+            <span class="font-mono">${group.dateLabel}</span>
+            <span class="font-mono text-[10px] text-neutral-400">${group.records.length} 筆</span>
+          </div>
+          <div class="space-y-1.5">
+            ${recordsHTML}
+          </div>
+        `;
+        listEl.appendChild(dayCard);
       });
     }
 
@@ -2718,7 +3144,7 @@
       if (listEl) listEl.innerHTML = '';
     }
 
-    // --- REPORT CALENDAR (CATEGORY & ITEM CALENDARS WITH SOLID DOT MARKERS) ---
+    // --- REPORT CALENDAR (CATEGORY & ITEM CALENDARS WITH CUSTOM ITEM COLORS) ---
     function switchReportCalendarMode(mode) {
       reportCalMode = mode;
       const catBtn = document.getElementById('calModeCategoryBtn');
@@ -2850,7 +3276,6 @@
       titleEl.innerText = `${dateKey} 紀錄詳情`;
 
       const records = (sYear === year && sMonth === month) ? (dayRecordsMap[sDay] || []) : [];
-      // 時間順序順排：當天最早的在最上面 (升冪排序)
       records.sort((a, b) => a.timestamp - b.timestamp);
 
       badgeEl.innerText = `${records.length} 筆`;
@@ -2867,17 +3292,23 @@
         const catBadge = rec.activityCategory 
           ? `<span class="text-[10px] px-1.5 py-0.2 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500">${escapeHTML(rec.activityCategory)}</span>` 
           : '';
+        const archivedBadge = rec.isArchived
+          ? `<span class="text-[9px] px-1.5 py-0.2 rounded bg-neutral-100/80 dark:bg-neutral-800/50 text-neutral-400 dark:text-neutral-500">已封存</span>`
+          : '';
+        const dotStyle = rec.activityColor ? `style="background-color:${rec.activityColor}"` : '';
+        const dotCls = rec.activityColor ? '' : 'bg-blue-600 dark:bg-blue-400';
 
         row.innerHTML = `
           <div class="flex items-center justify-between gap-1.5">
             <div class="flex items-center gap-1.5 min-w-0">
-              <span class="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-blue-400 flex-shrink-0"></span>
+              <span class="w-1.5 h-1.5 rounded-full ${dotCls} flex-shrink-0" ${dotStyle}></span>
               <span class="font-bold text-neutral-900 dark:text-neutral-100 truncate">${escapeHTML(rec.activityName)}</span>
               ${catBadge}
+              ${archivedBadge}
             </div>
             <span class="font-mono text-neutral-400 text-[11px] flex-shrink-0">${formatTimeOnly(rec.timestamp)}</span>
           </div>
-          ${rec.note ? `<p class="text-[11px] text-neutral-500 dark:text-neutral-400 whitespace-pre-line pl-3">${escapeHTML(rec.note)}</p>` : ''}
+          ${rec.note ? `<p class="text-[11px] text-neutral-500 dark:text-neutral-400 whitespace-pre-line pl-3">${linkifyText(rec.note)}</p>` : ''}
           ${rec.image ? `
             <div class="pl-3 pt-0.5">
               <img src="${rec.image}" alt="縮圖" onclick="openImagePreviewModal(this.src)" class="w-10 h-10 object-cover rounded-lg border border-neutral-200 dark:border-neutral-700 cursor-pointer shadow-xs hover:opacity-90" />
@@ -2896,7 +3327,7 @@
       const firstDay = new Date(year, month, 1).getDay();
       const daysCount = new Date(year, month + 1, 0).getDate();
 
-      let targetActivities = activities.filter(a => !a.isArchived);
+      let targetActivities = [...activities];
       if (reportCalMode === 'category') {
         if (reportSelectedCalCategory === 'UNCATEGORIZED') {
           targetActivities = targetActivities.filter(a => !a.categories || a.categories.length === 0);
@@ -2919,6 +3350,8 @@
             dayRecordsMap[dayNum].push({
               activityName: act.name,
               activityCategory: (act.categories && act.categories.length > 0) ? act.categories[0] : '',
+              activityColor: act.color || '',
+              isArchived: !!act.isArchived,
               timestamp: h.timestamp,
               note: h.note || '',
               image: h.image || ''
@@ -2927,7 +3360,6 @@
         });
       });
 
-      // 當天最早記錄排在最上方 (升冪排序)
       Object.keys(dayRecordsMap).forEach(d => {
         dayRecordsMap[d].sort((a, b) => a.timestamp - b.timestamp);
       });
@@ -2937,7 +3369,7 @@
 
       let cells = '';
       for (let i = 0; i < firstDay; i++) {
-        cells += `<div class="h-8"></div>`;
+        cells += `<div class="h-9"></div>`;
       }
 
       for (let day = 1; day <= daysCount; day++) {
@@ -2952,42 +3384,82 @@
 
         let cellBtn = '';
         if (hasRecord) {
+          const distinctColors = [];
+          let hasUncolored = false;
+          records.forEach(r => {
+            if (r.activityColor) {
+              if (!distinctColors.includes(r.activityColor)) {
+                distinctColors.push(r.activityColor);
+              }
+            } else {
+              hasUncolored = true;
+            }
+          });
+
+          const useSingleSolidColor = distinctColors.length === 1 && !hasUncolored;
+          const singleColor = useSingleSolidColor ? distinctColors[0] : '';
+          const singleTextColor = singleColor ? getContrastTextColor(singleColor) : '';
+
+          const btnStyle = useSingleSolidColor
+            ? `style="background-color: ${singleColor}; color: ${singleTextColor};"`
+            : '';
+          const btnColorCls = useSingleSolidColor
+            ? ''
+            : 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950';
+
+          const showSubDots = !useSingleSolidColor && distinctColors.length > 0;
+          const subDotsHTML = showSubDots
+            ? `<div class="flex items-center justify-center gap-0.5 mt-0.5 h-1.5">
+                ${distinctColors.slice(0, 4).map(c => `<span class="w-1 h-1 rounded-full" style="background-color:${c}"></span>`).join('')}
+               </div>`
+            : `<div class="h-1.5 mt-0.5"></div>`;
+
           cellBtn = `
-            <button 
-              type="button"
-              onclick="selectReportCalendarDate(${year}, ${month}, ${day})"
-              class="relative w-6 h-6 rounded-full flex flex-col items-center justify-center text-xs font-bold transition active:scale-95 ${
-                isSelected 
-                  ? 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 ring-2 ring-blue-500 shadow-md' 
-                  : 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 hover:opacity-90 shadow-xs'
-              }"
-              title="${dateKey} (有 ${records.length} 筆紀錄，點擊查看)"
-            >
-              <span>${day}</span>
-            </button>
+            <div class="flex flex-col items-center justify-center">
+              <button 
+                type="button"
+                onclick="selectReportCalendarDate(${year}, ${month}, ${day})"
+                ${btnStyle}
+                class="relative w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition active:scale-95 ${btnColorCls} ${
+                  isSelected 
+                    ? 'ring-2 ring-blue-500 shadow-md' 
+                    : 'hover:opacity-90 shadow-xs'
+                }"
+                title="${dateKey} (有 ${records.length} 筆紀錄，點擊查看)"
+              >
+                <span>${day}</span>
+              </button>
+              ${subDotsHTML}
+            </div>
           `;
         } else if (isToday) {
           cellBtn = `
-            <span
-              class="w-7 h-7 rounded-full border border-blue-500 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center text-xs"
-              title="${dateKey} (今日，無紀錄)"
-            >
-              ${day}
-            </span>
+            <div class="flex flex-col items-center justify-center">
+              <span
+                class="w-6 h-6 rounded-full border border-blue-500 text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center text-xs"
+                title="${dateKey} (今日，無紀錄)"
+              >
+                ${day}
+              </span>
+              <div class="h-1.5 mt-0.5"></div>
+            </div>
           `;
         } else {
           cellBtn = `
-            <span
-              class="w-7 h-7 flex items-center justify-center text-xs text-neutral-400 dark:text-neutral-600 font-medium"
-              title="${dateKey} (無紀錄)"
-            >
-              ${day}
-            </span>
+            <div class="flex flex-col items-center justify-center">
+              <span
+                class="w-6 h-6 flex items-center justify-center text-xs text-neutral-400 dark:text-neutral-600 font-medium"
+                title="${dateKey} (無紀錄)"
+              >
+                ${day}
+              </span>
+              <div class="h-1.5 mt-0.5"></div>
+            </div>
           `;
         }
 
         cells += `
-          <div class="h-8 flex items-center justify-center">
+          <div class="h-9 flex items-center justify-center">
             ${cellBtn}
           </div>
         `;
@@ -3151,6 +3623,7 @@
           if (inPeriodLogs.length > 0) {
             periodFreqList.push({
               name: act.name,
+              isArchived: !!act.isArchived,
               count: inPeriodLogs.length
             });
           }
@@ -3168,11 +3641,15 @@
             const rankBadge = idx === 0 
               ? `<span class="w-4 h-4 rounded-full bg-blue-600 text-white font-bold text-[10px] flex items-center justify-center font-mono flex-shrink-0">1</span>`
               : `<span class="w-4 h-4 rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold text-[10px] flex items-center justify-center font-mono flex-shrink-0">${idx + 1}</span>`;
+            const archivedBadge = item.isArchived
+              ? `<span class="text-[9px] px-1.5 py-0.2 rounded bg-neutral-100/80 dark:bg-neutral-800/50 text-neutral-400 dark:text-neutral-500 flex-shrink-0">已封存</span>`
+              : '';
 
             card.innerHTML = `
               <div class="flex items-center gap-2 min-w-0">
                 ${rankBadge}
                 <span class="font-semibold text-neutral-900 dark:text-neutral-100 truncate">${escapeHTML(item.name)}</span>
+                ${archivedBadge}
               </div>
               <span class="font-mono text-neutral-700 dark:text-neutral-300 font-bold text-xs flex-shrink-0">${item.count} 次</span>
             `;
@@ -3188,6 +3665,7 @@
             if (reg) {
               periodRegList.push({
                 name: act.name,
+                isArchived: !!act.isArchived,
                 ...reg
               });
             }
@@ -3206,12 +3684,16 @@
             const rankBadge = idx === 0 
               ? `<span class="w-4 h-4 rounded-full bg-blue-600 text-white font-bold text-[10px] flex items-center justify-center font-mono flex-shrink-0">1</span>`
               : `<span class="w-4 h-4 rounded-full bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold text-[10px] flex items-center justify-center font-mono flex-shrink-0">${idx + 1}</span>`;
+            const archivedBadge = item.isArchived
+              ? `<span class="text-[9px] px-1.5 py-0.2 rounded bg-neutral-100/80 dark:bg-neutral-800/50 text-neutral-400 dark:text-neutral-500 ml-1">已封存</span>`
+              : '';
 
             card.innerHTML = `
               <div class="flex items-center gap-2 min-w-0">
                 ${rankBadge}
                 <div class="truncate">
                   <span class="font-semibold text-neutral-900 dark:text-neutral-100 truncate">${escapeHTML(item.name)}</span>
+                  ${archivedBadge}
                   <span class="text-[10px] font-mono text-neutral-400 ml-1">每 ${item.avg} 天</span>
                 </div>
               </div>
@@ -3234,6 +3716,8 @@
 
       if (!overdueListEl || !periodItemsBarList || !reportHistoryLogList) return;
 
+      renderReportSearchResults(document.getElementById('reportSearchInput')?.value || '');
+
       if (focusedHeatmapActivityId && !activities.some(a => a.id === focusedHeatmapActivityId)) {
         focusedHeatmapActivityId = null;
       }
@@ -3253,6 +3737,7 @@
         if (inPeriodLogs.length > 0) {
           statsMap.push({
             name: act.name,
+            isArchived: !!act.isArchived,
             count: inPeriodLogs.length,
             id: act.id
           });
@@ -3270,6 +3755,10 @@
         statsMap.forEach(item => {
           const percent = Math.min(100, Math.round((item.count / maxVal) * 100));
           const isFocused = focusedHeatmapActivityId === item.id && reportCalMode === 'item';
+          const archivedBadge = item.isArchived
+            ? `<span class="text-[9px] px-1.5 py-0.2 rounded bg-neutral-100/80 dark:bg-neutral-800/50 text-neutral-400 dark:text-neutral-500">已封存</span>`
+            : '';
+
           const row = document.createElement('div');
           row.className = `p-2 rounded-xl transition cursor-pointer ${
             isFocused 
@@ -3289,6 +3778,7 @@
               <span class="text-neutral-900 dark:text-neutral-100 font-semibold truncate flex items-center gap-1.5">
                 ${isFocused ? '<span class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-600 text-white dark:bg-blue-500">鎖定中</span>' : ''}
                 ${escapeHTML(item.name)}
+                ${archivedBadge}
               </span>
               <span class="font-mono text-neutral-500 text-xs">${item.count} 次</span>
             </div>
@@ -3315,13 +3805,17 @@
         if (targetDays && elapsedDays > targetDays) {
           overdueCount++;
           const overDiff = (elapsedDays - targetDays).toFixed(1);
+          const archivedBadge = activity.isArchived
+            ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-neutral-100/80 dark:bg-neutral-800/50 text-neutral-400 dark:text-neutral-500 font-medium">已封存</span>`
+            : '';
 
           const card = document.createElement('div');
           card.className = "p-3 rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 flex items-center justify-between gap-2";
           card.innerHTML = `
             <div>
-              <div class="flex items-center gap-1.5">
+              <div class="flex items-center gap-1.5 flex-wrap">
                 <span class="font-bold text-sm text-neutral-900 dark:text-neutral-100">${escapeHTML(activity.name)}</span>
+                ${archivedBadge}
                 <span class="text-xs font-mono px-1.5 py-0.5 rounded bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold">逾期 ${overDiff} 天</span>
               </div>
               <p class="text-xs text-neutral-400 mt-1 font-mono">
@@ -3354,6 +3848,8 @@
           allLogs.push({
             activityId: act.id,
             activityName: act.name,
+            activityColor: act.color || '',
+            isArchived: !!act.isArchived,
             recordId: h.id,
             timestamp: h.timestamp,
             note: h.note || ''
@@ -3412,12 +3908,18 @@
                 <img src="${logImg}" alt="縮圖" onclick="openImagePreviewModal(this.src)" class="w-10 h-10 object-cover rounded-lg border border-neutral-200 dark:border-neutral-700 cursor-pointer shadow-sm hover:opacity-90 transition" />
               </div>
             ` : '';
+            const archivedBadge = log.isArchived
+              ? `<span class="text-[9px] px-1.5 py-0.2 rounded bg-neutral-100/80 dark:bg-neutral-800/50 text-neutral-400 dark:text-neutral-500 flex-shrink-0">已封存</span>`
+              : '';
+            const dotStyle = log.activityColor ? `style="background-color:${log.activityColor}"` : '';
+            const dotCls = log.activityColor ? '' : 'bg-neutral-400';
 
             row.innerHTML = `
               <div class="flex items-center justify-between gap-2 text-xs">
                 <div class="flex items-center gap-1.5 min-w-0">
-                  <span class="w-1.5 h-1.5 rounded-full bg-neutral-400 flex-shrink-0"></span>
+                  <span class="w-1.5 h-1.5 rounded-full ${dotCls} flex-shrink-0" ${dotStyle}></span>
                   <span class="font-bold text-neutral-800 dark:text-neutral-200 truncate">${escapeHTML(log.activityName)}</span>
+                  ${archivedBadge}
                 </div>
                 <div class="flex items-center gap-1.5 flex-shrink-0 font-mono text-xs text-neutral-400">
                   <span>${formatTimeOnly(log.timestamp)}</span>
@@ -3437,7 +3939,7 @@
                   </button>
                 </div>
               </div>
-              ${cleanNote ? `<div class="w-full text-left pt-0.5"><p class="text-xs font-sans text-neutral-600 dark:text-neutral-400 whitespace-pre-line break-words leading-normal select-text m-0 p-0">${escapeHTML(cleanNote)}</p></div>` : ''}
+              ${cleanNote ? `<div class="w-full text-left pt-0.5"><p class="text-xs font-sans text-neutral-600 dark:text-neutral-400 whitespace-pre-line break-words leading-normal select-text m-0 p-0">${linkifyText(cleanNote)}</p></div>` : ''}
               ${imgThumbHTML}
             `;
             groupBlock.appendChild(row);
@@ -3549,7 +4051,6 @@
         }
       }
 
-      // 備援計算
       if (usedBytes === 0) {
         try {
           const serialized = JSON.stringify(activities) + JSON.stringify(categories);
@@ -3607,11 +4108,13 @@
 
           activities = [];
           categories = [...DEFAULT_CATEGORIES];
+          customColors = [];
           expandedItemId = null;
           focusedHeatmapActivityId = null;
 
           await saveData();
           await saveCategories();
+          await saveCustomColors();
           refreshAll();
           showToast('已清空 IndexedDB 資料庫並重置', 'ph-trash');
         }
@@ -3685,6 +4188,9 @@
       document.getElementById('newCategoryInput')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') addNewCategory();
       });
+      document.getElementById('catModalNewInput')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') addCategoryFromModal();
+      });
 
       document.getElementById('saveEditNameBtn')?.addEventListener('click', submitEditName);
       document.getElementById('editNameInput')?.addEventListener('keydown', (e) => {
@@ -3702,6 +4208,24 @@
         if (input) {
           input.value = '';
           renderHomeView('');
+          input.focus();
+        }
+      });
+
+      document.getElementById('clearDictSearchBtn')?.addEventListener('click', () => {
+        const input = document.getElementById('dictSearchInput');
+        if (input) {
+          input.value = '';
+          renderDictionaryView('');
+          input.focus();
+        }
+      });
+
+      document.getElementById('clearReportSearchBtn')?.addEventListener('click', () => {
+        const input = document.getElementById('reportSearchInput');
+        if (input) {
+          input.value = '';
+          renderReportSearchResults('');
           input.focus();
         }
       });
@@ -3728,6 +4252,9 @@
       document.getElementById('dictSearchInput')?.addEventListener('input', (e) => {
         renderDictionaryView(e.target.value);
       });
+      document.getElementById('reportSearchInput')?.addEventListener('input', (e) => {
+        renderReportSearchResults(e.target.value);
+      });
 
       const backupModal = document.getElementById('backupModal');
       document.getElementById('backupModalBtn')?.addEventListener('click', () => {
@@ -3738,7 +4265,7 @@
       document.getElementById('clearAllDataBtn')?.addEventListener('click', requestClearAllData);
 
       document.getElementById('exportDataBtn')?.addEventListener('click', () => {
-        const exportPayload = { activities, categories, version: '3.0 (IndexedDB)' };
+        const exportPayload = { activities, categories, customColors, version: '3.0 (IndexedDB)' };
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
         const downloadAnchor = document.createElement('a');
         downloadAnchor.setAttribute("href", dataStr);
@@ -3761,6 +4288,7 @@
               activities = imported.map(item => {
                 if (!item.categories) item.categories = item.category ? [item.category] : [];
                 if (typeof item.isArchived !== 'boolean') item.isArchived = false;
+                if (typeof item.color !== 'string') item.color = '';
                 if (item.history) item.history = item.history.map(h => ({ ...h, note: h.note || '', image: h.image || '' }));
                 return item;
               });
@@ -3768,16 +4296,19 @@
               activities = imported.activities.map(item => {
                 if (!item.categories) item.categories = item.category ? [item.category] : [];
                 if (typeof item.isArchived !== 'boolean') item.isArchived = false;
+                if (typeof item.color !== 'string') item.color = '';
                 if (item.history) item.history = item.history.map(h => ({ ...h, note: h.note || '', image: h.image || '' }));
                 return item;
               });
               if (Array.isArray(imported.categories)) categories = imported.categories;
+              if (Array.isArray(imported.customColors)) customColors = imported.customColors;
             } else {
               showToast("格式錯誤，無法匯入", "ph-x-circle");
               return;
             }
             await saveData();
             await saveCategories();
+            await saveCustomColors();
             refreshAll();
             updateStorageUsageUI();
             closeBackupModal();
