@@ -711,7 +711,7 @@
       </div>
     </div>
 
-    <!-- MODAL: DATE RECORD DETAIL & NOTE / CUSTOM FIELDS ACTION -->
+    <!-- MODAL: DATE RECORD DETAIL & NOTE / SUB-ITEMS / CUSTOM FIELDS ACTION -->
     <div id="dateActionModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
       <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3">
         <div class="flex items-center justify-between pb-1 border-b border-neutral-100 dark:border-neutral-800">
@@ -1029,7 +1029,10 @@
     let expandedDictSubItemIds = new Set();
 
     let modalRecordFieldDrafts = {};
+    let modalRecordSubItemDrafts = {};
     let modalBacklogFieldDrafts = {};
+    let modalBacklogSubItemDrafts = [];
+    let modalBacklogDateObj = null;
 
     let editNameState = {
       type: null,
@@ -1153,6 +1156,24 @@
       return parts.join('\n');
     }
 
+    function composeFullRecordNote(activity, fields, valuesMap, selectedSubItemIds, extraPlainNote) {
+      const plainLines = [];
+      if (Array.isArray(selectedSubItemIds) && selectedSubItemIds.length > 0 && activity && Array.isArray(activity.subItems)) {
+        const chosenNames = selectedSubItemIds
+          .map(id => activity.subItems.find(s => s.id === id))
+          .filter(Boolean)
+          .map(s => s.content);
+        if (chosenNames.length > 0) {
+          plainLines.push(chosenNames.join('、'));
+        }
+      }
+      const cleanExtra = (extraPlainNote || '').trim();
+      if (cleanExtra) {
+        plainLines.push(cleanExtra);
+      }
+      return composeNoteWithCustomFields(fields, valuesMap, plainLines.join('\n'));
+    }
+
     function extractPlainNoteAndFieldValues(activity, record) {
       const fields = getCategoryCustomFieldsForActivity(activity);
       const savedFieldVals = {};
@@ -1236,6 +1257,52 @@
       return {
         plainNote: remainingLines.join('\n').trim(),
         fieldValues: savedFieldVals
+      };
+    }
+
+    function extractRecordEditComponents(activity, record) {
+      const { plainNote, fieldValues } = extractPlainNoteAndFieldValues(activity, record);
+      const subItems = Array.isArray(activity.subItems) ? activity.subItems : [];
+      let selectedSubItemIds = Array.isArray(record.selectedSubItemIds)
+        ? record.selectedSubItemIds.filter(id => subItems.some(s => s.id === id))
+        : [];
+
+      if (!plainNote || subItems.length === 0) {
+        return {
+          extraNote: plainNote,
+          fieldValues,
+          selectedSubItemIds
+        };
+      }
+
+      const lines = plainNote.split('\n');
+      const remainingLines = [];
+      let matchedLineSubIds = [];
+
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        const tokens = trimmed.split('、').map(t => t.trim()).filter(Boolean);
+        if (tokens.length > 0 && tokens.every(tok => subItems.some(s => s.content === tok))) {
+          tokens.forEach(tok => {
+            const matchedSub = subItems.find(s => s.content === tok);
+            if (matchedSub && !matchedLineSubIds.includes(matchedSub.id)) {
+              matchedLineSubIds.push(matchedSub.id);
+            }
+          });
+        } else {
+          remainingLines.push(line);
+        }
+      });
+
+      if (selectedSubItemIds.length === 0 && matchedLineSubIds.length > 0) {
+        selectedSubItemIds = matchedLineSubIds;
+      }
+
+      return {
+        extraNote: remainingLines.join('\n').trim(),
+        fieldValues,
+        selectedSubItemIds
       };
     }
 
@@ -1582,7 +1649,8 @@
                 ...h,
                 note: h.note || '',
                 image: h.image || '',
-                customFieldValues: (h.customFieldValues && typeof h.customFieldValues === 'object') ? h.customFieldValues : {}
+                customFieldValues: (h.customFieldValues && typeof h.customFieldValues === 'object') ? h.customFieldValues : {},
+                selectedSubItemIds: Array.isArray(h.selectedSubItemIds) ? h.selectedSubItemIds : []
               }));
             }
             return item;
@@ -1835,6 +1903,101 @@
       }
     }
 
+    function getSubItemsForDateEditor(activity, targetDateObj, alwaysIncludeIds = []) {
+      if (!activity || !Array.isArray(activity.subItems)) return [];
+      const available = getAvailableSubItemsForDate(activity, targetDateObj);
+      const map = new Map();
+      available.forEach(s => map.set(s.id, s));
+      if (Array.isArray(alwaysIncludeIds)) {
+        alwaysIncludeIds.forEach(id => {
+          if (!map.has(id)) {
+            const found = activity.subItems.find(s => s.id === id);
+            if (found) map.set(found.id, found);
+          }
+        });
+      }
+      return Array.from(map.values());
+    }
+
+    function buildModalSubItemsEditorHTML(subItemsList, selectedIds, mode, recordId = '') {
+      if (!subItemsList || subItemsList.length === 0) return '';
+      const toggleFn = mode === 'record'
+        ? `toggleModalRecordSubItem('${recordId}', `
+        : `toggleModalBacklogSubItem(`;
+
+      return `
+        <div class="space-y-1.5 pt-1.5 border-t border-neutral-200/70 dark:border-neutral-700/70">
+          <div class="text-[10px] font-bold text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+            <i class="ph ph-check-square text-xs text-blue-600 dark:text-blue-400"></i>
+            <span>勾選細項</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            ${subItemsList.map(sub => {
+              const isSelected = Array.isArray(selectedIds) && selectedIds.includes(sub.id);
+              let dateHint = '';
+              if (sub.startDate || sub.endDate) {
+                const s = sub.startDate ? sub.startDate.slice(5).replace('-', '/') : '';
+                const e = sub.endDate ? sub.endDate.slice(5).replace('-', '/') : '';
+                dateHint = `<span class="text-[9px] font-mono opacity-75">(${s}~${e})</span>`;
+              }
+              return `
+                <button
+                  type="button"
+                  onclick="${toggleFn}'${escapeHTML(sub.id)}')"
+                  class="text-[11px] px-2 py-1 rounded-lg border transition-all flex items-center gap-1 text-left ${
+                    isSelected
+                      ? 'bg-blue-600 text-white border-blue-600 font-bold shadow-xs'
+                      : 'bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 border-neutral-300 dark:border-neutral-700 hover:border-neutral-400'
+                  }"
+                >
+                  <i class="ph ${isSelected ? 'ph-check-square' : 'ph-square'} text-xs flex-shrink-0"></i>
+                  <span class="break-words">${escapeHTML(sub.content)}</span>
+                  ${dateHint}
+                </button>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleModalRecordSubItem(recordId, subId) {
+      if (!Array.isArray(modalRecordSubItemDrafts[recordId])) {
+        modalRecordSubItemDrafts[recordId] = [];
+      }
+      const list = modalRecordSubItemDrafts[recordId];
+      const idx = list.indexOf(subId);
+      if (idx >= 0) {
+        list.splice(idx, 1);
+      } else {
+        list.push(subId);
+      }
+      const box = document.getElementById(`record-subitems-editor-${recordId}`);
+      if (box) {
+        const act = activities.find(a => a.id === box.dataset.activityId);
+        const rec = act ? (act.history || []).find(r => r.id === recordId) : null;
+        const targetDate = rec ? new Date(rec.timestamp) : new Date();
+        const subItemsList = getSubItemsForDateEditor(act, targetDate, modalRecordSubItemDrafts[recordId]);
+        box.innerHTML = buildModalSubItemsEditorHTML(subItemsList, modalRecordSubItemDrafts[recordId], 'record', recordId);
+      }
+    }
+
+    function toggleModalBacklogSubItem(subId) {
+      const idx = modalBacklogSubItemDrafts.indexOf(subId);
+      if (idx >= 0) {
+        modalBacklogSubItemDrafts.splice(idx, 1);
+      } else {
+        modalBacklogSubItemDrafts.push(subId);
+      }
+      const box = document.getElementById('modal-backlog-subitems-editor');
+      if (box) {
+        const act = activities.find(a => a.id === box.dataset.activityId);
+        const targetDate = modalBacklogDateObj || new Date();
+        const subItemsList = getSubItemsForDateEditor(act, targetDate, modalBacklogSubItemDrafts);
+        box.innerHTML = buildModalSubItemsEditorHTML(subItemsList, modalBacklogSubItemDrafts, 'backlog');
+      }
+    }
+
     function buildModalCustomFieldsEditorHTML(fields, valuesMap, mode, recordId = '') {
       if (!fields || fields.length === 0) return '';
       return `
@@ -1964,6 +2127,9 @@
       const activity = activities.find(a => a.id === activityId);
       if (!activity) return;
 
+      const targetDayObj = new Date(year, month, day);
+      modalBacklogDateObj = targetDayObj;
+
       const dateStr = `${year}/${String(month + 1).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
       const matchingRecords = (activity.history || []).filter(rec => {
         const d = new Date(rec.timestamp);
@@ -1971,6 +2137,7 @@
       });
 
       const categoryFields = getCategoryCustomFieldsForActivity(activity);
+      const backlogAvailableSubItems = getSubItemsForDateEditor(activity, targetDayObj, []);
 
       const modal = document.getElementById('dateActionModal');
       const titleEl = document.getElementById('dateActionTitle');
@@ -1983,7 +2150,10 @@
       listEl.innerHTML = '';
       modalBacklogImage = '';
       modalRecordFieldDrafts = {};
+      modalRecordSubItemDrafts = {};
       modalBacklogFieldDrafts = {};
+      modalBacklogSubItemDrafts = [];
+
       categoryFields.forEach(f => {
         if (activity.fieldValues && activity.fieldValues[f.id] !== undefined) {
           const v = activity.fieldValues[f.id];
@@ -2001,8 +2171,9 @@
         listEl.appendChild(recordsHeader);
 
         matchingRecords.forEach((rec) => {
-          const { plainNote, fieldValues } = extractPlainNoteAndFieldValues(activity, rec);
+          const { extraNote, fieldValues, selectedSubItemIds } = extractRecordEditComponents(activity, rec);
           modalRecordFieldDrafts[rec.id] = { ...fieldValues };
+          modalRecordSubItemDrafts[rec.id] = [...selectedSubItemIds];
 
           const row = document.createElement('div');
           row.className = "p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-700/80 space-y-2";
@@ -2029,6 +2200,11 @@
           const noteDisplayHTML = rec.note
             ? linkifyText(rec.note)
             : '<span class="text-neutral-400">無備註</span>';
+
+          const recSubItemsForDate = getSubItemsForDateEditor(activity, new Date(rec.timestamp), modalRecordSubItemDrafts[rec.id]);
+          const subItemsEditorHTML = recSubItemsForDate.length > 0
+            ? `<div id="record-subitems-editor-${rec.id}" data-activity-id="${activity.id}" class="hidden">${buildModalSubItemsEditorHTML(recSubItemsForDate, modalRecordSubItemDrafts[rec.id], 'record', rec.id)}</div>`
+            : '';
 
           const customFieldDisplayHTML = formatCustomFieldBadgesHTML(activity, rec, 'pt-0.5');
           const customFieldEditorHTML = categoryFields.length > 0
@@ -2059,6 +2235,7 @@
             </div>
 
             <div class="space-y-1.5">
+              ${subItemsEditorHTML}
               <div id="record-fields-display-${rec.id}">${customFieldDisplayHTML}</div>
               ${customFieldEditorHTML}
 
@@ -2074,7 +2251,7 @@
                   readonly
                   class="hidden flex-1 text-xs px-2.5 py-1.5 rounded-xl bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 resize-none leading-relaxed transition"
                   oninput="autoResizeTextarea(this)"
-                >${escapeHTML(plainNote)}</textarea>
+                >${escapeHTML(extraNote)}</textarea>
                 <div class="flex items-center gap-1 flex-shrink-0">
                   <label 
                     id="record-upload-label-${rec.id}" 
@@ -2125,6 +2302,10 @@
         matchingRecords.length > 0 ? 'hidden mt-1 border-dashed border-neutral-300 dark:border-neutral-700' : ''
       }`;
       
+      const backlogSubItemsHTML = backlogAvailableSubItems.length > 0
+        ? `<div id="modal-backlog-subitems-editor" data-activity-id="${activity.id}">${buildModalSubItemsEditorHTML(backlogAvailableSubItems, modalBacklogSubItemDrafts, 'backlog')}</div>`
+        : '';
+
       const backlogFieldsHTML = categoryFields.length > 0
         ? `<div id="modal-backlog-fields-editor" data-activity-id="${activity.id}">${buildModalCustomFieldsEditorHTML(categoryFields, modalBacklogFieldDrafts, 'backlog')}</div>`
         : '';
@@ -2138,6 +2319,7 @@
             class="text-xs bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-2 py-1 rounded-lg border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 font-mono"
           />
         </div>
+        ${backlogSubItemsHTML}
         ${backlogFieldsHTML}
         <div class="space-y-1.5">
           <div class="flex items-start gap-1.5">
@@ -2271,6 +2453,7 @@
       const delImgBtn = document.getElementById(`record-img-del-${recordId}`);
       const fieldsDisplay = document.getElementById(`record-fields-display-${recordId}`);
       const fieldsEditor = document.getElementById(`record-fields-editor-${recordId}`);
+      const subItemsEditor = document.getElementById(`record-subitems-editor-${recordId}`);
       if (!input || !btn) return;
       
       const act = activities.find(a => a.id === activityId);
@@ -2281,9 +2464,18 @@
       const isReadOnly = input.hasAttribute('readonly');
 
       if (isReadOnly) {
-        const { plainNote, fieldValues } = extractPlainNoteAndFieldValues(act, rec);
+        const { extraNote, fieldValues, selectedSubItemIds } = extractRecordEditComponents(act, rec);
         modalRecordFieldDrafts[recordId] = { ...fieldValues };
-        input.value = plainNote;
+        modalRecordSubItemDrafts[recordId] = [...selectedSubItemIds];
+        input.value = extraNote;
+
+        if (subItemsEditor) {
+          const recSubItemsForDate = getSubItemsForDateEditor(act, new Date(rec.timestamp), modalRecordSubItemDrafts[recordId]);
+          if (recSubItemsForDate.length > 0) {
+            subItemsEditor.innerHTML = buildModalSubItemsEditorHTML(recSubItemsForDate, modalRecordSubItemDrafts[recordId], 'record', recordId);
+            subItemsEditor.classList.remove('hidden');
+          }
+        }
 
         if (fieldsEditor) {
           const categoryFields = getCategoryCustomFieldsForActivity(act);
@@ -2323,8 +2515,11 @@
 
         const categoryFields = getCategoryCustomFieldsForActivity(act);
         const draftVals = modalRecordFieldDrafts[recordId] ? { ...modalRecordFieldDrafts[recordId] } : { ...(rec.customFieldValues || {}) };
+        const draftSubIds = Array.isArray(modalRecordSubItemDrafts[recordId]) ? [...modalRecordSubItemDrafts[recordId]] : [];
+
         rec.customFieldValues = draftVals;
-        rec.note = composeNoteWithCustomFields(categoryFields, draftVals, input.value);
+        rec.selectedSubItemIds = draftSubIds;
+        rec.note = composeFullRecordNote(act, categoryFields, draftVals, draftSubIds, input.value);
 
         act.history.sort((a, b) => b.timestamp - a.timestamp);
         await saveData();
@@ -2340,6 +2535,10 @@
           timeDisplay.innerText = formatTimeOnly(rec.timestamp);
           timeDisplay.classList.remove('hidden');
           timeInput.classList.add('hidden');
+        }
+
+        if (subItemsEditor) {
+          subItemsEditor.classList.add('hidden');
         }
 
         if (fieldsDisplay && fieldsEditor) {
@@ -2373,13 +2572,20 @@
       if (!activity) return;
 
       const categoryFields = getCategoryCustomFieldsForActivity(activity);
-      const mergedNote = composeNoteWithCustomFields(categoryFields, modalBacklogFieldDrafts, noteVal);
+      const mergedNote = composeFullRecordNote(
+        activity,
+        categoryFields,
+        modalBacklogFieldDrafts,
+        modalBacklogSubItemDrafts,
+        noteVal
+      );
 
       const newRecord = {
         id: 'h-' + Date.now(),
         timestamp: targetDate.getTime(),
         note: mergedNote,
         customFieldValues: { ...modalBacklogFieldDrafts },
+        selectedSubItemIds: [...modalBacklogSubItemDrafts],
         image: modalBacklogImage || ''
       };
 
@@ -3367,31 +3573,18 @@
       const act = activities.find(a => a.id === quickRecordState.activityId);
       if (!act) return;
 
-      const plainLines = [];
-
-      if (quickRecordState.selectedSubItemIds.length > 0 && Array.isArray(act.subItems)) {
-        const chosenNames = quickRecordState.selectedSubItemIds
-          .map(id => act.subItems.find(s => s.id === id))
-          .filter(Boolean)
-          .map(s => s.content);
-        if (chosenNames.length > 0) {
-          plainLines.push(chosenNames.join('、'));
-        }
-      }
-
       const extraInput = document.getElementById('quickRecordExtraNoteInput');
       const extraText = extraInput ? extraInput.value.trim() : '';
-      if (extraText) {
-        plainLines.push(extraText);
-      }
 
       if (!act.fieldValues || typeof act.fieldValues !== 'object') act.fieldValues = {};
       Object.assign(act.fieldValues, quickRecordState.fieldValues);
 
-      const mergedNote = composeNoteWithCustomFields(
+      const mergedNote = composeFullRecordNote(
+        act,
         quickRecordState.categoryFields,
         quickRecordState.fieldValues,
-        plainLines.join('\n')
+        quickRecordState.selectedSubItemIds,
+        extraText
       );
 
       const newRecord = {
@@ -3399,6 +3592,7 @@
         timestamp: Date.now(),
         note: mergedNote,
         customFieldValues: { ...quickRecordState.fieldValues },
+        selectedSubItemIds: [...quickRecordState.selectedSubItemIds],
         image: quickRecordState.image || ''
       };
 
@@ -3558,6 +3752,7 @@
             timestamp: Date.now(),
             note: '',
             customFieldValues: {},
+            selectedSubItemIds: [],
             image: ''
           }
         ]
@@ -5543,6 +5738,7 @@
         timestamp: Date.now(),
         note: '',
         customFieldValues: {},
+        selectedSubItemIds: [],
         image: ''
       };
 
@@ -5572,6 +5768,7 @@
           timestamp: Date.now(),
           note: '',
           customFieldValues: {},
+          selectedSubItemIds: [],
           image: thumbBase64
         };
 
@@ -5864,7 +6061,7 @@
       document.getElementById('clearAllDataBtn')?.addEventListener('click', requestClearAllData);
 
       document.getElementById('exportDataBtn')?.addEventListener('click', () => {
-        const exportPayload = { activities, categories, categoryConfigs, customColors, version: '3.2 (IndexedDB)' };
+        const exportPayload = { activities, categories, categoryConfigs, customColors, version: '3.3 (IndexedDB)' };
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
         const downloadAnchor = document.createElement('a');
         downloadAnchor.setAttribute("href", dataStr);
@@ -5895,7 +6092,8 @@
                     ...h,
                     note: h.note || '',
                     image: h.image || '',
-                    customFieldValues: (h.customFieldValues && typeof h.customFieldValues === 'object') ? h.customFieldValues : {}
+                    customFieldValues: (h.customFieldValues && typeof h.customFieldValues === 'object') ? h.customFieldValues : {},
+                    selectedSubItemIds: Array.isArray(h.selectedSubItemIds) ? h.selectedSubItemIds : []
                   }));
                 }
                 return item;
@@ -5912,7 +6110,8 @@
                     ...h,
                     note: h.note || '',
                     image: h.image || '',
-                    customFieldValues: (h.customFieldValues && typeof h.customFieldValues === 'object') ? h.customFieldValues : {}
+                    customFieldValues: (h.customFieldValues && typeof h.customFieldValues === 'object') ? h.customFieldValues : {},
+                    selectedSubItemIds: Array.isArray(h.selectedSubItemIds) ? h.selectedSubItemIds : []
                   }));
                 }
                 return item;
