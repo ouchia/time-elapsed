@@ -36,7 +36,7 @@
       -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
-    input, textarea {
+    input, textarea, select {
       user-select: text;
     }
     input[type="search"]::-webkit-search-cancel-button,
@@ -431,65 +431,260 @@
 
     </main>
 
-    <!-- MODAL: EDIT NAME & CUSTOM COLOR (ITEM OR CATEGORY) -->
+    <!-- MODAL: EDIT NAME, CUSTOM COLOR, ITEM SUB-ITEMS & CATEGORY CUSTOM FIELDS -->
     <div id="editNameModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
-      <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-5 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3.5">
-        <div class="flex items-center justify-between pb-1 border-b border-neutral-100 dark:border-neutral-800">
+      <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3 max-h-[88vh] flex flex-col">
+        <div class="flex items-center justify-between pb-1.5 border-b border-neutral-100 dark:border-neutral-800 flex-shrink-0">
           <h3 class="font-bold text-sm text-neutral-900 dark:text-white" id="editNameModalTitle">編輯名稱</h3>
           <button onclick="closeEditNameModal()" class="p-1 rounded-full text-neutral-400 hover:text-neutral-600">
             <i class="ph ph-x text-base"></i>
           </button>
         </div>
-        <div class="space-y-2">
-          <label class="text-[11px] text-neutral-400 font-medium block" id="editNameModalLabel">輸入新名稱</label>
-          <input 
-            type="text" 
-            id="editNameInput" 
-            placeholder="請輸入名稱..." 
-            class="w-full bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 text-xs px-3 py-2 rounded-xl border border-transparent focus:border-neutral-400 dark:focus:border-neutral-600 focus:outline-none"
-          />
-        </div>
-        <!-- Color Section (Shown only when editing an item) -->
-        <div id="editItemColorSection" class="space-y-2.5 hidden pt-1.5 border-t border-neutral-100 dark:border-neutral-800">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5">
-              <label class="text-[11px] text-neutral-400 font-medium">標記顏色</label>
-              <span id="editItemColorPreviewText" class="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">預設</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <button type="button" id="deleteCustomColorBtn" onclick="deleteSelectedCustomColor()" class="hidden text-[10px] text-red-500 hover:text-red-600 font-medium">刪除色票</button>
-              <button type="button" onclick="selectItemColorPreset('')" class="text-[10px] text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 underline">重設</button>
-            </div>
-          </div>
-          <div class="flex items-center gap-1.5 flex-wrap" id="editItemColorSwatches"></div>
-          <div class="flex items-center gap-1.5 pt-0.5">
-            <label class="relative w-5 h-5 rounded-full overflow-hidden border border-neutral-300 dark:border-neutral-600 flex-shrink-0 cursor-pointer shadow-xs" title="點擊開啟色盤">
-              <input type="color" id="editItemCustomColorPicker" value="#039BE5" oninput="handleColorPickerInput(this.value)" class="absolute -inset-2 w-9 h-9 cursor-pointer border-0 bg-transparent p-0" />
-            </label>
+
+        <div class="space-y-3 overflow-y-auto no-scrollbar pr-0.5 flex-1">
+          <div class="space-y-1.5">
+            <label class="text-[11px] text-neutral-400 font-medium block" id="editNameModalLabel">輸入新名稱</label>
             <input 
               type="text" 
-              id="editItemHexInput" 
-              maxlength="7"
-              placeholder="#039BE5" 
-              oninput="handleHexColorInput(this.value)"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();saveCustomColorSwatch();}"
-              class="flex-1 min-w-0 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-mono text-[11px] px-2.5 py-1 rounded-lg border border-transparent focus:border-neutral-400 dark:focus:border-neutral-600 focus:outline-none uppercase"
+              id="editNameInput" 
+              placeholder="請輸入名稱..." 
+              class="w-full bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 text-xs px-3 py-2 rounded-xl border border-transparent focus:border-neutral-400 dark:focus:border-neutral-600 focus:outline-none"
             />
-            <button 
-              type="button" 
-              onclick="saveCustomColorSwatch()" 
-              class="px-2.5 py-1 rounded-lg bg-neutral-200/80 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-[11px] font-semibold transition whitespace-nowrap flex-shrink-0"
-            >
-              加入色票
-            </button>
+          </div>
+
+          <!-- SECTION A: CATEGORY CUSTOM FIELDS CONFIG (Shown when editing category) -->
+          <div id="editCategoryCustomFieldsSection" class="space-y-2.5 hidden pt-2 border-t border-neutral-100 dark:border-neutral-800">
+            <div class="flex items-center justify-between">
+              <label class="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
+                <i class="ph ph-sliders-horizontal text-xs text-blue-600 dark:text-blue-400"></i>
+                <span>分類自定義欄位</span>
+              </label>
+              <span class="text-[10px] text-neutral-400">首頁記錄時自動彈窗</span>
+            </div>
+
+            <!-- Add new custom field form -->
+            <div class="p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/70 border border-neutral-200/80 dark:border-neutral-700/80 space-y-2">
+              <div class="flex items-center justify-between">
+                <span id="catFieldFormModeTitle" class="text-[11px] font-bold text-neutral-700 dark:text-neutral-300">新增自定義欄位</span>
+                <button 
+                  type="button" 
+                  id="cancelEditCatFieldBtn"
+                  onclick="resetCustomFieldForm()" 
+                  class="hidden text-[10px] text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 underline"
+                >
+                  取消編輯
+                </button>
+              </div>
+              <div class="flex gap-1.5">
+                <input 
+                  type="text" 
+                  id="newCatFieldNameInput" 
+                  placeholder="欄位名稱" 
+                  class="flex-1 min-w-0 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 focus:outline-none"
+                />
+                <select 
+                  id="newCatFieldTypeSelect" 
+                  class="bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 text-xs px-2 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 focus:outline-none font-medium"
+                >
+                  <option value="text">文字</option>
+                  <option value="number">數字</option>
+                  <option value="currency">金額</option>
+                  <option value="rating">五星</option>
+                </select>
+              </div>
+              <button 
+                type="button" 
+                id="saveCatFieldFormBtn"
+                onclick="addCustomFieldToEditingCategory()" 
+                class="w-full py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-neutral-950 text-xs font-bold transition flex items-center justify-center gap-1"
+              >
+                <i class="ph ph-plus text-xs"></i>
+                <span>新增自定義欄位</span>
+              </button>
+            </div>
+
+            <!-- List of configured fields -->
+            <div id="editCategoryFieldsList" class="space-y-1.5"></div>
+          </div>
+
+          <!-- SECTION B: ITEM COLOR & SUB-ITEMS (Shown when editing item) -->
+          <div id="editItemColorSection" class="space-y-3 hidden pt-2 border-t border-neutral-100 dark:border-neutral-800">
+            <!-- Color Picker -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1.5">
+                  <label class="text-[11px] text-neutral-400 font-medium">標記顏色</label>
+                  <span id="editItemColorPreviewText" class="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">預設</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button type="button" id="deleteCustomColorBtn" onclick="deleteSelectedCustomColor()" class="hidden text-[10px] text-red-500 hover:text-red-600 font-medium">刪除色票</button>
+                  <button type="button" onclick="selectItemColorPreset('')" class="text-[10px] text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 underline">重設</button>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5 flex-wrap" id="editItemColorSwatches"></div>
+              <div class="flex items-center gap-1.5 pt-0.5">
+                <label class="relative w-5 h-5 rounded-full overflow-hidden border border-neutral-300 dark:border-neutral-600 flex-shrink-0 cursor-pointer shadow-xs" title="點擊開啟色盤">
+                  <input type="color" id="editItemCustomColorPicker" value="#039BE5" oninput="handleColorPickerInput(this.value)" class="absolute -inset-2 w-9 h-9 cursor-pointer border-0 bg-transparent p-0" />
+                </label>
+                <input 
+                  type="text" 
+                  id="editItemHexInput" 
+                  maxlength="7"
+                  placeholder="#039BE5" 
+                  oninput="handleHexColorInput(this.value)"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();saveCustomColorSwatch();}"
+                  class="flex-1 min-w-0 bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-mono text-[11px] px-2.5 py-1 rounded-lg border border-transparent focus:border-neutral-400 dark:focus:border-neutral-600 focus:outline-none uppercase"
+                />
+                <button 
+                  type="button" 
+                  onclick="saveCustomColorSwatch()" 
+                  class="px-2.5 py-1 rounded-lg bg-neutral-200/80 hover:bg-neutral-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-[11px] font-semibold transition whitespace-nowrap flex-shrink-0"
+                >
+                  加入色票
+                </button>
+              </div>
+            </div>
+
+            <!-- Item Sub-Items Management -->
+            <div class="space-y-2 pt-2 border-t border-neutral-100 dark:border-neutral-800">
+              <div class="flex items-center justify-between">
+                <label class="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
+                  <i class="ph ph-list-checks text-xs text-blue-600 dark:text-blue-400"></i>
+                  <span>項目細項管理</span>
+                </label>
+                <button 
+                  type="button" 
+                  onclick="toggleAddSubItemForm()" 
+                  class="text-[11px] px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-bold hover:bg-blue-100 dark:hover:bg-blue-900/60 transition flex items-center gap-0.5"
+                >
+                  <i class="ph ph-plus text-xs"></i>
+                  <span>新增細項</span>
+                </button>
+              </div>
+
+              <!-- Collapsible Add / Edit Sub-Item Form -->
+              <div id="addSubItemFormBox" class="hidden p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/70 border border-neutral-200 dark:border-neutral-700 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span id="subItemFormModeTitle" class="text-[11px] font-bold text-neutral-700 dark:text-neutral-300">新增細項</span>
+                </div>
+                <input 
+                  type="text" 
+                  id="newSubItemContentInput" 
+                  placeholder="細項內容" 
+                  class="w-full bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 focus:outline-none"
+                />
+                <div class="grid grid-cols-2 gap-1.5 text-[11px]">
+                  <div>
+                    <span class="text-[10px] text-neutral-400 block mb-0.5">開始日期 (選填)</span>
+                    <input 
+                      type="date" 
+                      id="newSubItemStartInput" 
+                      class="w-full bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-[11px] px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 font-mono focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-neutral-400 block mb-0.5">結束日期 (選填)</span>
+                    <input 
+                      type="date" 
+                      id="newSubItemEndInput" 
+                      class="w-full bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-[11px] px-2 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 font-mono focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div class="flex gap-1.5 pt-0.5">
+                  <button 
+                    type="button" 
+                    onclick="toggleAddSubItemForm(false)" 
+                    class="flex-1 py-1 rounded-lg bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 text-[11px] font-semibold"
+                  >
+                    取消
+                  </button>
+                  <button 
+                    type="button" 
+                    id="saveSubItemFormBtn"
+                    onclick="saveSubItemFromForm()" 
+                    class="flex-1 py-1 rounded-lg bg-neutral-900 dark:bg-white text-white dark:text-neutral-950 text-[11px] font-bold"
+                  >
+                    加入細項
+                  </button>
+                </div>
+              </div>
+
+              <!-- Sub-items list -->
+              <div id="editItemSubItemsList" class="space-y-1.5"></div>
+            </div>
           </div>
         </div>
-        <div class="flex gap-2 pt-1">
+
+        <div class="flex gap-2 pt-2 border-t border-neutral-100 dark:border-neutral-800 flex-shrink-0">
           <button onclick="closeEditNameModal()" class="flex-1 py-2 text-xs font-semibold rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
             取消
           </button>
           <button id="saveEditNameBtn" class="flex-1 py-2 text-xs font-bold rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-950 shadow transition">
             儲存
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: QUICK RECORD POPUP (WHEN CUSTOM FIELDS ENABLED OR SUB-ITEMS EXIST) -->
+    <div id="quickRecordModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
+      <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3 max-h-[88vh] flex flex-col">
+        <div class="flex items-center justify-between pb-1.5 border-b border-neutral-100 dark:border-neutral-800 flex-shrink-0">
+          <div class="min-w-0 pr-2">
+            <h3 class="font-bold text-sm text-neutral-900 dark:text-white truncate" id="quickRecordModalTitle">記錄項目</h3>
+            <p class="text-[11px] font-mono text-neutral-400" id="quickRecordModalSub">填寫細項與自定義欄位</p>
+          </div>
+          <button onclick="closeQuickRecordModal()" class="p-1 rounded-full text-neutral-400 hover:text-neutral-600 flex-shrink-0">
+            <i class="ph ph-x text-base"></i>
+          </button>
+        </div>
+
+        <div class="space-y-3 overflow-y-auto no-scrollbar pr-0.5 flex-1">
+          <!-- Attached Image Preview (if triggered via camera) -->
+          <div id="quickRecordImagePreviewBox" class="hidden items-center gap-2 p-2 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700">
+            <img id="quickRecordImagePreview" src="" alt="附圖" class="w-12 h-12 object-cover rounded-lg border border-neutral-300 dark:border-neutral-700 cursor-pointer" onclick="openImagePreviewModal(this.src)" />
+            <div class="flex-1 text-[11px] text-neutral-500">已附加本次打卡照片</div>
+            <button type="button" onclick="clearQuickRecordImage()" class="text-[11px] text-red-500 font-medium px-2 py-1">移除</button>
+          </div>
+
+          <!-- Sub-items Checkboxes -->
+          <div id="quickRecordSubItemsSection" class="space-y-1.5 hidden">
+            <label class="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
+              <i class="ph ph-check-square text-xs text-blue-600 dark:text-blue-400"></i>
+              <span>勾選細項</span>
+            </label>
+            <div id="quickRecordSubItemsContainer" class="flex flex-wrap gap-1.5"></div>
+          </div>
+
+          <!-- Custom Fields from Categories (Independent Editing, Merged into Note on Save) -->
+          <div id="quickRecordCustomFieldsSection" class="space-y-2 hidden">
+            <label class="text-[11px] font-bold text-neutral-700 dark:text-neutral-300 flex items-center gap-1">
+              <i class="ph ph-sliders-horizontal text-xs text-blue-600 dark:text-blue-400"></i>
+              <span>自定義欄位</span>
+            </label>
+            <div id="quickRecordCustomFieldsContainer" class="space-y-2"></div>
+          </div>
+
+          <!-- Extra Note -->
+          <div class="space-y-1">
+            <label class="text-[11px] text-neutral-400 font-medium block">備註 (選填)</label>
+            <textarea 
+              id="quickRecordExtraNoteInput" 
+              rows="2" 
+              placeholder="輸入額外文字或網址..." 
+              class="w-full text-xs bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 px-2.5 py-1.5 rounded-xl border border-transparent focus:border-neutral-400 dark:focus:border-neutral-600 focus:outline-none resize-none leading-relaxed"
+              oninput="autoResizeTextarea(this)"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="flex gap-2 pt-2 border-t border-neutral-100 dark:border-neutral-800 flex-shrink-0">
+          <button onclick="closeQuickRecordModal()" class="flex-1 py-2 text-xs font-semibold rounded-xl bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300">
+            取消
+          </button>
+          <button onclick="submitQuickRecordModal()" class="flex-1 py-2 text-xs font-bold rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-950 shadow transition">
+            確認記錄
           </button>
         </div>
       </div>
@@ -516,7 +711,7 @@
       </div>
     </div>
 
-    <!-- MODAL: DATE RECORD DETAIL & NOTE ACTION (AUTO-EXPANDING TEXTAREA & PERMANENT BACKLOG MODULE) -->
+    <!-- MODAL: DATE RECORD DETAIL & NOTE / CUSTOM FIELDS ACTION -->
     <div id="dateActionModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
       <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3">
         <div class="flex items-center justify-between pb-1 border-b border-neutral-100 dark:border-neutral-800">
@@ -573,8 +768,8 @@
       </div>
     </div>
 
-    <!-- MODAL: CONFIRMATION DIALOG -->
-    <div id="confirmDialog" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
+    <!-- MODAL: CONFIRMATION DIALOG (Z-INDEX 80 ABOVE ALL EDIT MODALS) -->
+    <div id="confirmDialog" class="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm hidden">
       <div class="w-full max-w-xs bg-white dark:bg-neutral-900 rounded-2xl p-5 border border-neutral-200 dark:border-neutral-800 shadow-2xl space-y-3">
         <div class="flex items-center gap-2 text-neutral-900 dark:text-white">
           <i class="ph ph-warning-octagon text-xl"></i>
@@ -611,7 +806,6 @@
             </span>
             <span id="storageUsageText" class="font-mono font-bold text-neutral-800 dark:text-neutral-200">計算中...</span>
           </div>
-          <!-- 進度條 -->
           <div class="w-full h-1.5 rounded-full bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
             <div id="storageUsageBar" class="h-full bg-blue-600 dark:bg-blue-400 rounded-full transition-all duration-300" style="width: 0%;"></div>
           </div>
@@ -642,7 +836,7 @@
     </div>
 
     <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 opacity-0 translate-y-3 bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 px-3.5 py-2 rounded-full text-xs font-bold shadow-xl flex items-center gap-1.5">
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] pointer-events-none transition-all duration-300 opacity-0 translate-y-3 bg-neutral-950 dark:bg-white text-white dark:text-neutral-950 px-3.5 py-2 rounded-full text-xs font-bold shadow-xl flex items-center gap-1.5">
       <i class="ph ph-info text-sm"></i>
       <span id="toastMsg">已完成操作</span>
     </div>
@@ -746,8 +940,70 @@
       { name: '石墨灰', hex: '#616161' }
     ];
 
+    const FIELD_TYPE_LABELS = {
+      text: '文字',
+      number: '數字',
+      currency: '金額',
+      rating: '五星'
+    };
+
+    const CURRENCY_RATES_TO_TWD = {
+      TWD: 1,
+      USD: 32.5,
+      JPY: 0.215,
+      EUR: 35.2,
+      CNY: 4.5,
+      HKD: 4.16,
+      KRW: 0.0235,
+      GBP: 41.3,
+      AUD: 21.2,
+      SGD: 24.2
+    };
+
+    const CURRENCY_OPTIONS = [
+      { code: 'TWD', label: 'TWD' },
+      { code: 'USD', label: 'USD 美金' },
+      { code: 'JPY', label: 'JPY 日圓' },
+      { code: 'EUR', label: 'EUR 歐元' },
+      { code: 'CNY', label: 'CNY 人民幣' },
+      { code: 'HKD', label: 'HKD 港幣' },
+      { code: 'KRW', label: 'KRW 韓元' },
+      { code: 'GBP', label: 'GBP 英鎊' },
+      { code: 'AUD', label: 'AUD 澳幣' },
+      { code: 'SGD', label: 'SGD 新加坡幣' }
+    ];
+
+    function parseCurrencyFieldValue(rawVal) {
+      if (rawVal === undefined || rawVal === null || rawVal === '') {
+        return { amount: '', currency: 'TWD' };
+      }
+      if (typeof rawVal === 'object') {
+        return {
+          amount: rawVal.amount !== undefined && rawVal.amount !== null ? String(rawVal.amount) : '',
+          currency: rawVal.currency || 'TWD'
+        };
+      }
+      return { amount: String(rawVal), currency: 'TWD' };
+    }
+
+    function computeConvertedTwdAmount(amountStr, currency = 'TWD') {
+      const num = parseFloat(String(amountStr).replace(/,/g, ''));
+      if (isNaN(num)) return null;
+      const rate = CURRENCY_RATES_TO_TWD[currency] || 1;
+      return Math.round(num * rate);
+    }
+
+    function formatCurrencyDisplay(rawVal) {
+      const { amount, currency } = parseCurrencyFieldValue(rawVal);
+      if (amount === '' || amount === null || amount === undefined) return '';
+      const twd = computeConvertedTwdAmount(amount, currency);
+      if (twd === null) return '';
+      return twd.toLocaleString('en-US');
+    }
+
     let activities = [];
     let categories = []; 
+    let categoryConfigs = {};
     let customColors = [];
     let currentView = 'home';
     let dictSubTab = 'items';
@@ -761,20 +1017,37 @@
     let isHistoryLogExpanded = false;
     let isOverdueExpanded = false;
     let isPeriodBarsExpanded = false;
-    let reportCalMode = 'category'; // 'category' | 'item'
+    let reportCalMode = 'category';
     let reportSelectedCalCategory = 'ALL';
-    let reportCalSelectedDate = null; // { year, month, day }
-    let reportCalSelectedDateKey = null; // 'YYYY/MM/DD'
+    let reportCalSelectedDate = null;
+    let reportCalSelectedDateKey = null;
     let pendingConfirmAction = null;
     let isNavMenuOpen = false;
     let activeCatModalActivityId = null;
     let categorySortDrag = null;
     let modalBacklogImage = '';
+    let expandedDictSubItemIds = new Set();
+
+    let modalRecordFieldDrafts = {};
+    let modalBacklogFieldDrafts = {};
 
     let editNameState = {
       type: null,
       id: null,
-      color: ''
+      color: '',
+      customFields: [],
+      editingFieldId: null,
+      fieldValues: {},
+      subItems: [],
+      editingSubItemId: null
+    };
+
+    let quickRecordState = {
+      activityId: null,
+      image: '',
+      selectedSubItemIds: [],
+      fieldValues: {},
+      categoryFields: []
     };
 
     const DEFAULT_CATEGORIES = ['保健食品', '大掃除', '身體健康', '居家生活'];
@@ -821,43 +1094,297 @@
       el.style.height = Math.max(30, el.scrollHeight) + 'px';
     }
 
-    // --- CLIENT-SIDE IMAGE COMPRESSION (THUMBNAIL GENERATOR) ---
+    function getCategoryCustomFieldsForActivity(activity) {
+      if (!activity || !Array.isArray(activity.categories)) return [];
+      const result = [];
+      const seenIds = new Set();
+      activity.categories.forEach(catName => {
+        const cfg = categoryConfigs[catName];
+        if (cfg && Array.isArray(cfg.customFields)) {
+          cfg.customFields.forEach(f => {
+            if (!seenIds.has(f.id)) {
+              seenIds.add(f.id);
+              result.push({
+                ...f,
+                categoryName: catName
+              });
+            }
+          });
+        }
+      });
+      return result;
+    }
+
+    function formatCustomFieldLines(fields, valuesMap) {
+      if (!fields || fields.length === 0 || !valuesMap) return [];
+      const lines = [];
+      fields.forEach(field => {
+        const val = valuesMap[field.id];
+        if (val !== undefined && val !== '' && val !== 0) {
+          if (field.type === 'rating') {
+            const num = Number(val) || 0;
+            if (num > 0) {
+              const stars = '★'.repeat(num) + '☆'.repeat(Math.max(0, 5 - num));
+              lines.push(`${field.name}: ${stars} (${num}/5)`);
+            }
+          } else if (field.type === 'currency') {
+            const formatted = formatCurrencyDisplay(val);
+            if (formatted !== '') {
+              lines.push(`${field.name}: ${formatted}`);
+            }
+          } else {
+            lines.push(`${field.name}: ${String(val)}`);
+          }
+        }
+      });
+      return lines;
+    }
+
+    function composeNoteWithCustomFields(fields, valuesMap, plainNoteText) {
+      const cfLines = formatCustomFieldLines(fields, valuesMap);
+      const cleanPlain = (plainNoteText || '').trim();
+      const parts = [];
+      if (cfLines.length > 0) {
+        parts.push(cfLines.join('\n'));
+      }
+      if (cleanPlain) {
+        parts.push(cleanPlain);
+      }
+      return parts.join('\n');
+    }
+
+    function extractPlainNoteAndFieldValues(activity, record) {
+      const fields = getCategoryCustomFieldsForActivity(activity);
+      const savedFieldVals = {};
+      if (record.customFieldValues && typeof record.customFieldValues === 'object') {
+        Object.keys(record.customFieldValues).forEach(k => {
+          const v = record.customFieldValues[k];
+          savedFieldVals[k] = (v && typeof v === 'object') ? { ...v } : v;
+        });
+      }
+      const rawNote = (record.note || '').trim();
+
+      if (!rawNote || fields.length === 0) {
+        return { plainNote: rawNote, fieldValues: savedFieldVals };
+      }
+
+      const lines = rawNote.split('\n');
+      const remainingLines = [];
+
+      lines.forEach(line => {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return;
+
+        const segments = trimmedLine.split('、');
+        let matchedAllSegments = segments.length > 0;
+        const parsedFromLine = {};
+
+        for (const seg of segments) {
+          const colonIdx = seg.indexOf(':');
+          if (colonIdx === -1) {
+            matchedAllSegments = false;
+            break;
+          }
+          const keyPart = seg.slice(0, colonIdx).trim();
+          const valPart = seg.slice(colonIdx + 1).trim();
+          const matchedField = fields.find(f => f.name === keyPart);
+          if (!matchedField) {
+            matchedAllSegments = false;
+            break;
+          }
+
+          if (matchedField.type === 'rating') {
+            const scoreMatch = valPart.match(/\(?(\d+)\s*\/\s*5\)?/);
+            const starCount = (valPart.match(/★/g) || []).length;
+            if (scoreMatch) {
+              parsedFromLine[matchedField.id] = Number(scoreMatch[1]);
+            } else if (starCount > 0) {
+              parsedFromLine[matchedField.id] = starCount;
+            } else if (!isNaN(Number(valPart)) && Number(valPart) >= 1 && Number(valPart) <= 5) {
+              parsedFromLine[matchedField.id] = Number(valPart);
+            } else {
+              matchedAllSegments = false;
+              break;
+            }
+          } else if (matchedField.type === 'currency') {
+            const numClean = valPart.replace(/,/g, '').trim();
+            if (!isNaN(parseFloat(numClean))) {
+              parsedFromLine[matchedField.id] = { amount: numClean, currency: 'TWD' };
+            } else {
+              matchedAllSegments = false;
+              break;
+            }
+          } else {
+            parsedFromLine[matchedField.id] = valPart;
+          }
+        }
+
+        if (matchedAllSegments) {
+          Object.keys(parsedFromLine).forEach(fid => {
+            const existing = savedFieldVals[fid];
+            const isEmpty = existing === undefined || existing === '' || existing === 0 ||
+              (typeof existing === 'object' && (!existing.amount || existing.amount === ''));
+            if (isEmpty) {
+              savedFieldVals[fid] = parsedFromLine[fid];
+            }
+          });
+        } else {
+          remainingLines.push(line);
+        }
+      });
+
+      return {
+        plainNote: remainingLines.join('\n').trim(),
+        fieldValues: savedFieldVals
+      };
+    }
+
+    function formatCustomFieldBadgesHTML(activity, record, extraClass = '') {
+      if (!activity || !record || !record.customFieldValues) return '';
+      const fields = getCategoryCustomFieldsForActivity(activity);
+      const existingNote = record.note || '';
+      const chips = [];
+
+      fields.forEach(field => {
+        const val = record.customFieldValues[field.id];
+        if (val !== undefined && val !== '' && val !== 0) {
+          if (existingNote.includes(`${field.name}:`)) return;
+          if (field.type === 'rating') {
+            const num = Number(val) || 0;
+            if (num > 0) {
+              const stars = '★'.repeat(num) + '☆'.repeat(Math.max(0, 5 - num));
+              chips.push(`<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-50/90 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/70 dark:border-amber-800/60 text-[10px] font-medium">${escapeHTML(field.name)}: ${stars} (${num}/5)</span>`);
+            }
+          } else if (field.type === 'currency') {
+            const formatted = formatCurrencyDisplay(val);
+            if (formatted !== '') {
+              chips.push(`<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-neutral-200/70 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-[10px] font-mono font-medium">${escapeHTML(field.name)}: ${escapeHTML(formatted)}</span>`);
+            }
+          } else {
+            chips.push(`<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-neutral-200/70 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-[10px] font-medium">${escapeHTML(field.name)}: ${escapeHTML(String(val))}</span>`);
+          }
+        }
+      });
+
+      if (chips.length === 0) return '';
+      return `<div class="flex flex-col items-start gap-1 ${extraClass}">${chips.join('')}</div>`;
+    }
+
+    function getCustomFieldsSearchableText(activity, record) {
+      if (!activity || !record || !record.customFieldValues) return '';
+      const fields = getCategoryCustomFieldsForActivity(activity);
+      const parts = [];
+      fields.forEach(f => {
+        const v = record.customFieldValues[f.id];
+        if (v !== undefined && v !== '' && v !== 0) {
+          if (f.type === 'currency') {
+            const formatted = formatCurrencyDisplay(v);
+            if (formatted) parts.push(`${f.name} ${formatted} ${formatted.replace(/,/g, '')}`);
+          } else {
+            parts.push(`${f.name} ${v}`);
+          }
+        }
+      });
+      return parts.join(' ').toLowerCase();
+    }
+
+    function buildCurrencyInputControlHTML(fieldId, rawVal, amountHandlerExpr, currencyHandlerExpr, previewElementId) {
+      const parsed = parseCurrencyFieldValue(rawVal);
+      const twd = computeConvertedTwdAmount(parsed.amount, parsed.currency);
+      const showPreview = parsed.currency !== 'TWD' && twd !== null;
+      const previewText = showPreview ? `≈ ${twd.toLocaleString('en-US')} TWD` : '';
+
+      return `
+        <div class="space-y-1">
+          <div class="flex items-center gap-1.5">
+            <select
+              onchange="${currencyHandlerExpr}"
+              class="bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 text-xs font-mono px-2 py-1 rounded-lg border border-neutral-300 dark:border-neutral-700 focus:outline-none"
+            >
+              ${CURRENCY_OPTIONS.map(opt => `<option value="${opt.code}" ${parsed.currency === opt.code ? 'selected' : ''}>${opt.label}</option>`).join('')}
+            </select>
+            <input
+              type="number"
+              step="any"
+              value="${escapeHTML(parsed.amount)}"
+              placeholder="輸入金額..."
+              oninput="${amountHandlerExpr}"
+              class="flex-1 min-w-0 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-xs font-mono px-2.5 py-1 rounded-lg border border-neutral-300 dark:border-neutral-700 focus:outline-none"
+            />
+          </div>
+          <div id="${previewElementId}" class="text-[10px] font-mono text-blue-600 dark:text-blue-400 font-semibold ${showPreview ? '' : 'hidden'}">${previewText}</div>
+        </div>
+      `;
+    }
+
+    function refreshCurrencyPreviewElement(previewElementId, rawVal) {
+      const el = document.getElementById(previewElementId);
+      if (!el) return;
+      const parsed = parseCurrencyFieldValue(rawVal);
+      const twd = computeConvertedTwdAmount(parsed.amount, parsed.currency);
+      if (parsed.currency !== 'TWD' && twd !== null) {
+        el.innerText = `≈ ${twd.toLocaleString('en-US')} TWD`;
+        el.classList.remove('hidden');
+      } else {
+        el.innerText = '';
+        el.classList.add('hidden');
+      }
+    }
+
+    function renderStarRatingHTML(currentValue, callbackName, fieldId, extraArg = '') {
+      const val = Number(currentValue) || 0;
+      const extraParam = extraArg ? `'${escapeHTML(extraArg)}', ` : '';
+      let starsHTML = '';
+      for (let i = 1; i <= 5; i++) {
+        const isFilled = i <= val;
+        const nextVal = (i === val) ? 0 : i;
+        starsHTML += `
+          <button
+            type="button"
+            onclick="${callbackName}(${extraParam}'${escapeHTML(fieldId)}', ${nextVal})"
+            class="p-0.5 text-lg leading-none transition active:scale-90 ${isFilled ? 'text-amber-400' : 'text-neutral-300 dark:text-neutral-600 hover:text-amber-300'}"
+            title="${i} 星 (再點一次可清除)"
+          >
+            <i class="ph-fill ph-star"></i>
+          </button>
+        `;
+      }
+      return `
+        <div class="flex items-center justify-between pt-0.5">
+          <div class="flex items-center gap-0.5">${starsHTML}</div>
+          <span class="text-[11px] font-mono font-bold text-neutral-500 dark:text-neutral-400">${val > 0 ? `${val}/5` : '未評分'}</span>
+        </div>
+      `;
+    }
+
     function compressImageToThumbnail(file, maxDimension = 400, quality = 0.65) {
       return new Promise((resolve, reject) => {
-        if (!file) return reject(new Error('未選取檔案'));
+        if (!file) return reject(new Error('No file'));
         const reader = new FileReader();
-        reader.onerror = () => reject(new Error('讀取檔案失敗'));
+        reader.onerror = () => reject(new Error('File read error'));
         reader.onload = (e) => {
           const img = new Image();
-          img.onerror = () => reject(new Error('無法載入圖片'));
+          img.onerror = () => reject(new Error('Image load error'));
           img.onload = () => {
-            try {
-              let width = img.width;
-              let height = img.height;
-
-              if (width > height) {
-                if (width > maxDimension) {
-                  height = Math.round((height * maxDimension) / width);
-                  width = maxDimension;
-                }
-              } else {
-                if (height > maxDimension) {
-                  width = Math.round((width * maxDimension) / height);
-                  height = maxDimension;
-                }
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+              if (width > maxDimension) {
+                height = Math.round((height * maxDimension) / width);
+                width = maxDimension;
               }
-
-              const canvas = document.createElement('canvas');
-              canvas.width = Math.max(1, width);
-              canvas.height = Math.max(1, height);
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(img, 0, 0, width, height);
-              
-              const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-              resolve(compressedBase64);
-            } catch (err) {
-              reject(err);
+            } else {
+              if (height > maxDimension) {
+                width = Math.round((width * maxDimension) / height);
+                height = maxDimension;
+              }
             }
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, width);
+            canvas.height = Math.max(1, height);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
           };
           img.src = e.target.result;
         };
@@ -940,7 +1467,6 @@
       if (mainContainer) mainContainer.scrollTop = 0;
     }
 
-    // --- LOOP VIEW SWITCHING (SWIPE GESTURE HANDLER) ---
     function navigateViewLoop(direction) {
       const currentIndex = VIEW_ORDER.indexOf(currentView);
       if (currentIndex === -1) return;
@@ -982,7 +1508,7 @@
           return;
         }
 
-        const isModalOpen = document.querySelector('#editNameModal:not(.hidden), #categorySortModal:not(.hidden), #dateActionModal:not(.hidden), #itemCategoryModal:not(.hidden), #confirmDialog:not(.hidden), #backupModal:not(.hidden), #imagePreviewModal:not(.hidden)');
+        const isModalOpen = document.querySelector('#editNameModal:not(.hidden), #quickRecordModal:not(.hidden), #categorySortModal:not(.hidden), #dateActionModal:not(.hidden), #itemCategoryModal:not(.hidden), #confirmDialog:not(.hidden), #backupModal:not(.hidden), #imagePreviewModal:not(.hidden)');
         if (isModalOpen) {
           startX = 0;
           startY = 0;
@@ -1016,11 +1542,11 @@
       }, { passive: true });
     }
 
-    // --- DATA LOADING & AUTO-MIGRATION (LOCALSTORAGE -> INDEXEDDB) ---
     async function loadData() {
       try {
         let idbActivities = await idbGet('activities');
         let idbCategories = await idbGet('categories');
+        let idbCategoryConfigs = await idbGet('categoryConfigs');
         let idbCustomColors = await idbGet('customColors');
 
         if (!idbActivities) {
@@ -1049,8 +1575,15 @@
             delete item.category;
             if (typeof item.isArchived !== 'boolean') item.isArchived = false;
             if (typeof item.color !== 'string') item.color = '';
+            if (!item.fieldValues || typeof item.fieldValues !== 'object') item.fieldValues = {};
+            if (!Array.isArray(item.subItems)) item.subItems = [];
             if (item.history) {
-              item.history = item.history.map(h => ({ ...h, note: h.note || '', image: h.image || '' }));
+              item.history = item.history.map(h => ({
+                ...h,
+                note: h.note || '',
+                image: h.image || '',
+                customFieldValues: (h.customFieldValues && typeof h.customFieldValues === 'object') ? h.customFieldValues : {}
+              }));
             }
             return item;
           });
@@ -1066,6 +1599,12 @@
           await saveCategories();
         }
 
+        if (idbCategoryConfigs && typeof idbCategoryConfigs === 'object') {
+          categoryConfigs = idbCategoryConfigs;
+        } else {
+          categoryConfigs = {};
+        }
+
         if (Array.isArray(idbCustomColors)) {
           customColors = idbCustomColors;
         } else {
@@ -1075,6 +1614,7 @@
         console.error("載入資料失敗", e);
         activities = [];
         categories = [...DEFAULT_CATEGORIES];
+        categoryConfigs = {};
         customColors = [];
       }
     }
@@ -1092,6 +1632,14 @@
         await idbSet('categories', categories);
       } catch (e) {
         showToast("分類存入 IndexedDB 失敗", "ph-warning");
+      }
+    }
+
+    async function saveCategoryConfigs() {
+      try {
+        await idbSet('categoryConfigs', categoryConfigs);
+      } catch (e) {
+        showToast("分類欄位存入 IndexedDB 失敗", "ph-warning");
       }
     }
 
@@ -1268,7 +1816,6 @@
       renderHomeView(document.getElementById('homeSearchInput')?.value || '');
     }
 
-    // --- DATE ACTION MODAL (EDIT & LOCK WORKFLOW + HYPERLINK SUPPORT + CONDITIONAL BACKLOG MODULE) ---
     function revealModalBacklog() {
       const btn = document.getElementById('modal-open-backlog-btn');
       const block = document.getElementById('modalBacklogBlock');
@@ -1288,6 +1835,131 @@
       }
     }
 
+    function buildModalCustomFieldsEditorHTML(fields, valuesMap, mode, recordId = '') {
+      if (!fields || fields.length === 0) return '';
+      return `
+        <div class="space-y-1.5 pt-1.5 border-t border-neutral-200/70 dark:border-neutral-700/70">
+          <div class="text-[10px] font-bold text-neutral-500 dark:text-neutral-400 flex items-center gap-1">
+            <i class="ph ph-sliders-horizontal text-xs text-blue-600 dark:text-blue-400"></i>
+            <span>自定義欄位</span>
+          </div>
+          <div class="space-y-1.5">
+            ${fields.map(field => {
+              const val = (valuesMap && valuesMap[field.id] !== undefined) ? valuesMap[field.id] : '';
+              let controlHTML = '';
+              if (field.type === 'rating') {
+                if (mode === 'record') {
+                  controlHTML = renderStarRatingHTML(val, 'setModalRecordRatingField', field.id, recordId);
+                } else {
+                  controlHTML = renderStarRatingHTML(val, 'setModalBacklogRatingField', field.id);
+                }
+              } else if (field.type === 'currency') {
+                const previewId = mode === 'record'
+                  ? `modal-rec-curr-prev-${recordId}-${field.id}`
+                  : `modal-backlog-curr-prev-${field.id}`;
+                const amtExpr = mode === 'record'
+                  ? `updateModalRecordCurrencyField('${recordId}', '${field.id}', this.value, null)`
+                  : `updateModalBacklogCurrencyField('${field.id}', this.value, null)`;
+                const currExpr = mode === 'record'
+                  ? `updateModalRecordCurrencyField('${recordId}', '${field.id}', null, this.value)`
+                  : `updateModalBacklogCurrencyField('${field.id}', null, this.value)`;
+                controlHTML = buildCurrencyInputControlHTML(field.id, val, amtExpr, currExpr, previewId);
+              } else if (field.type === 'number') {
+                const oninputAttr = mode === 'record'
+                  ? `updateModalRecordTextField('${recordId}', '${field.id}', this.value)`
+                  : `updateModalBacklogTextField('${field.id}', this.value)`;
+                controlHTML = `
+                  <input 
+                    type="number" 
+                    step="any"
+                    value="${escapeHTML(String(val))}"
+                    placeholder="輸入數字..."
+                    oninput="${oninputAttr}"
+                    class="w-full bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-xs font-mono px-2.5 py-1 rounded-lg border border-neutral-300 dark:border-neutral-700 focus:outline-none"
+                  />
+                `;
+              } else {
+                const oninputAttr = mode === 'record'
+                  ? `updateModalRecordTextField('${recordId}', '${field.id}', this.value)`
+                  : `updateModalBacklogTextField('${field.id}', this.value)`;
+                controlHTML = `
+                  <input 
+                    type="text" 
+                    value="${escapeHTML(String(val))}"
+                    placeholder="輸入${escapeHTML(field.name)}..."
+                    oninput="${oninputAttr}"
+                    class="w-full bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-xs px-2.5 py-1 rounded-lg border border-neutral-300 dark:border-neutral-700 focus:outline-none"
+                  />
+                `;
+              }
+              return `
+                <div class="p-2 rounded-lg bg-white/70 dark:bg-neutral-900/60 border border-neutral-200/70 dark:border-neutral-700/70 space-y-0.5">
+                  <div class="flex items-center justify-between text-[10px]">
+                    <span class="font-bold text-neutral-700 dark:text-neutral-300">${escapeHTML(field.name)}</span>
+                    <span class="text-neutral-400">${escapeHTML(field.categoryName)}</span>
+                  </div>
+                  ${controlHTML}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function setModalRecordRatingField(recordId, fieldId, val) {
+      if (!modalRecordFieldDrafts[recordId]) modalRecordFieldDrafts[recordId] = {};
+      modalRecordFieldDrafts[recordId][fieldId] = val;
+      const box = document.getElementById(`record-fields-editor-${recordId}`);
+      if (box) {
+        const actId = box.dataset.activityId;
+        const act = activities.find(a => a.id === actId);
+        const fields = getCategoryCustomFieldsForActivity(act);
+        box.innerHTML = buildModalCustomFieldsEditorHTML(fields, modalRecordFieldDrafts[recordId], 'record', recordId);
+      }
+    }
+
+    function updateModalRecordTextField(recordId, fieldId, val) {
+      if (!modalRecordFieldDrafts[recordId]) modalRecordFieldDrafts[recordId] = {};
+      modalRecordFieldDrafts[recordId][fieldId] = val;
+    }
+
+    function updateModalRecordCurrencyField(recordId, fieldId, newAmount, newCurrency) {
+      if (!modalRecordFieldDrafts[recordId]) modalRecordFieldDrafts[recordId] = {};
+      const prev = parseCurrencyFieldValue(modalRecordFieldDrafts[recordId][fieldId]);
+      const updated = {
+        amount: newAmount !== null ? newAmount : prev.amount,
+        currency: newCurrency !== null ? newCurrency : prev.currency
+      };
+      modalRecordFieldDrafts[recordId][fieldId] = updated;
+      refreshCurrencyPreviewElement(`modal-rec-curr-prev-${recordId}-${fieldId}`, updated);
+    }
+
+    function setModalBacklogRatingField(fieldId, val) {
+      modalBacklogFieldDrafts[fieldId] = val;
+      const box = document.getElementById('modal-backlog-fields-editor');
+      if (box) {
+        const actId = box.dataset.activityId;
+        const act = activities.find(a => a.id === actId);
+        const fields = getCategoryCustomFieldsForActivity(act);
+        box.innerHTML = buildModalCustomFieldsEditorHTML(fields, modalBacklogFieldDrafts, 'backlog');
+      }
+    }
+
+    function updateModalBacklogTextField(fieldId, val) {
+      modalBacklogFieldDrafts[fieldId] = val;
+    }
+
+    function updateModalBacklogCurrencyField(fieldId, newAmount, newCurrency) {
+      const prev = parseCurrencyFieldValue(modalBacklogFieldDrafts[fieldId]);
+      const updated = {
+        amount: newAmount !== null ? newAmount : prev.amount,
+        currency: newCurrency !== null ? newCurrency : prev.currency
+      };
+      modalBacklogFieldDrafts[fieldId] = updated;
+      refreshCurrencyPreviewElement(`modal-backlog-curr-prev-${fieldId}`, updated);
+    }
+
     function openDateActionModal(activityId, year, month, day) {
       const activity = activities.find(a => a.id === activityId);
       if (!activity) return;
@@ -1297,6 +1969,8 @@
         const d = new Date(rec.timestamp);
         return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
       });
+
+      const categoryFields = getCategoryCustomFieldsForActivity(activity);
 
       const modal = document.getElementById('dateActionModal');
       const titleEl = document.getElementById('dateActionTitle');
@@ -1308,6 +1982,16 @@
 
       listEl.innerHTML = '';
       modalBacklogImage = '';
+      modalRecordFieldDrafts = {};
+      modalBacklogFieldDrafts = {};
+      categoryFields.forEach(f => {
+        if (activity.fieldValues && activity.fieldValues[f.id] !== undefined) {
+          const v = activity.fieldValues[f.id];
+          modalBacklogFieldDrafts[f.id] = (v && typeof v === 'object') ? { ...v } : v;
+        } else {
+          modalBacklogFieldDrafts[f.id] = '';
+        }
+      });
 
       if (matchingRecords.length > 0) {
         matchingRecords.sort((a, b) => a.timestamp - b.timestamp);
@@ -1317,6 +2001,9 @@
         listEl.appendChild(recordsHeader);
 
         matchingRecords.forEach((rec) => {
+          const { plainNote, fieldValues } = extractPlainNoteAndFieldValues(activity, rec);
+          modalRecordFieldDrafts[rec.id] = { ...fieldValues };
+
           const row = document.createElement('div');
           row.className = "p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-700/80 space-y-2";
           
@@ -1343,6 +2030,11 @@
             ? linkifyText(rec.note)
             : '<span class="text-neutral-400">無備註</span>';
 
+          const customFieldDisplayHTML = formatCustomFieldBadgesHTML(activity, rec, 'pt-0.5');
+          const customFieldEditorHTML = categoryFields.length > 0
+            ? `<div id="record-fields-editor-${rec.id}" data-activity-id="${activity.id}" class="hidden">${buildModalCustomFieldsEditorHTML(categoryFields, modalRecordFieldDrafts[rec.id], 'record', rec.id)}</div>`
+            : '';
+
           row.innerHTML = `
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-1.5" id="time-container-${rec.id}">
@@ -1366,7 +2058,10 @@
               </button>
             </div>
 
-            <div class="space-y-1">
+            <div class="space-y-1.5">
+              <div id="record-fields-display-${rec.id}">${customFieldDisplayHTML}</div>
+              ${customFieldEditorHTML}
+
               <div class="flex items-start gap-1.5" id="note-container-${rec.id}">
                 <div 
                   id="note-display-${rec.id}" 
@@ -1375,11 +2070,11 @@
                 <textarea 
                   id="note-input-${rec.id}" 
                   rows="1"
-                  placeholder="輸入備註內容或貼上網址..." 
+                  placeholder="輸入備註或貼上網址..." 
                   readonly
                   class="hidden flex-1 text-xs px-2.5 py-1.5 rounded-xl bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 resize-none leading-relaxed transition"
                   oninput="autoResizeTextarea(this)"
-                >${escapeHTML(rec.note || '')}</textarea>
+                >${escapeHTML(plainNote)}</textarea>
                 <div class="flex items-center gap-1 flex-shrink-0">
                   <label 
                     id="record-upload-label-${rec.id}" 
@@ -1405,7 +2100,6 @@
           listEl.appendChild(row);
         });
 
-        // 當日已有紀錄時，加入「新增一筆」按鈕
         const addBtnWrap = document.createElement('div');
         addBtnWrap.className = "pt-1";
         addBtnWrap.innerHTML = `
@@ -1422,7 +2116,6 @@
         listEl.appendChild(addBtnWrap);
       }
 
-      // 補登介面（無紀錄時直接顯示；已有紀錄時由「新增一筆」按鈕展開）
       const now = new Date();
       const defaultTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
       
@@ -1432,6 +2125,10 @@
         matchingRecords.length > 0 ? 'hidden mt-1 border-dashed border-neutral-300 dark:border-neutral-700' : ''
       }`;
       
+      const backlogFieldsHTML = categoryFields.length > 0
+        ? `<div id="modal-backlog-fields-editor" data-activity-id="${activity.id}">${buildModalCustomFieldsEditorHTML(categoryFields, modalBacklogFieldDrafts, 'backlog')}</div>`
+        : '';
+
       backlogBlock.innerHTML = `
         <div class="flex items-center justify-start">
           <input 
@@ -1441,6 +2138,7 @@
             class="text-xs bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 px-2 py-1 rounded-lg border border-neutral-300 dark:border-neutral-700 focus:outline-none focus:border-neutral-500 font-mono"
           />
         </div>
+        ${backlogFieldsHTML}
         <div class="space-y-1.5">
           <div class="flex items-start gap-1.5">
             <textarea 
@@ -1548,17 +2246,19 @@
       }
     }
 
-    async function removeRecordImage(activityId, recordId) {
+    function removeRecordImage(activityId, recordId) {
       const act = activities.find(a => a.id === activityId);
       if (!act) return;
       const rec = (act.history || []).find(r => r.id === recordId);
       if (!rec) return;
 
-      rec.image = '';
-      await saveData();
-      const wrap = document.getElementById(`record-img-wrap-${recordId}`);
-      if (wrap) wrap.innerHTML = '';
-      showToast("已移除縮圖");
+      triggerConfirm('移除縮圖', '確定要移除這筆紀錄的縮圖照片嗎？', async () => {
+        rec.image = '';
+        await saveData();
+        const wrap = document.getElementById(`record-img-wrap-${recordId}`);
+        if (wrap) wrap.innerHTML = '';
+        showToast("已移除縮圖");
+      });
     }
 
     async function toggleRecordEditState(activityId, recordId) {
@@ -1569,6 +2269,8 @@
       const timeInput = document.getElementById(`time-input-${recordId}`);
       const uploadLabel = document.getElementById(`record-upload-label-${recordId}`);
       const delImgBtn = document.getElementById(`record-img-del-${recordId}`);
+      const fieldsDisplay = document.getElementById(`record-fields-display-${recordId}`);
+      const fieldsEditor = document.getElementById(`record-fields-editor-${recordId}`);
       if (!input || !btn) return;
       
       const act = activities.find(a => a.id === activityId);
@@ -1579,6 +2281,17 @@
       const isReadOnly = input.hasAttribute('readonly');
 
       if (isReadOnly) {
+        const { plainNote, fieldValues } = extractPlainNoteAndFieldValues(act, rec);
+        modalRecordFieldDrafts[recordId] = { ...fieldValues };
+        input.value = plainNote;
+
+        if (fieldsEditor) {
+          const categoryFields = getCategoryCustomFieldsForActivity(act);
+          fieldsEditor.innerHTML = buildModalCustomFieldsEditorHTML(categoryFields, modalRecordFieldDrafts[recordId], 'record', recordId);
+          fieldsEditor.classList.remove('hidden');
+        }
+        if (fieldsDisplay) fieldsDisplay.classList.add('hidden');
+
         if (displayDiv) displayDiv.classList.add('hidden');
         input.classList.remove('hidden');
         input.removeAttribute('readonly');
@@ -1608,7 +2321,11 @@
           }
         }
 
-        rec.note = input.value.trim();
+        const categoryFields = getCategoryCustomFieldsForActivity(act);
+        const draftVals = modalRecordFieldDrafts[recordId] ? { ...modalRecordFieldDrafts[recordId] } : { ...(rec.customFieldValues || {}) };
+        rec.customFieldValues = draftVals;
+        rec.note = composeNoteWithCustomFields(categoryFields, draftVals, input.value);
+
         act.history.sort((a, b) => b.timestamp - a.timestamp);
         await saveData();
 
@@ -1625,6 +2342,12 @@
           timeInput.classList.add('hidden');
         }
 
+        if (fieldsDisplay && fieldsEditor) {
+          fieldsDisplay.innerHTML = formatCustomFieldBadgesHTML(act, rec, 'pt-0.5');
+          fieldsDisplay.classList.remove('hidden');
+          fieldsEditor.classList.add('hidden');
+        }
+
         if (uploadLabel) uploadLabel.classList.add('hidden');
         if (delImgBtn) {
           delImgBtn.classList.add('hidden');
@@ -1633,7 +2356,7 @@
 
         btn.innerText = '編輯';
         btn.className = "px-3.5 py-1.5 bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 text-xs font-semibold rounded-xl transition whitespace-nowrap shadow-xs flex-shrink-0";
-        showToast("紀錄已儲存");
+        showToast("紀錄已儲存並寫入備註");
       }
     }
 
@@ -1649,10 +2372,14 @@
       const activity = activities.find(a => a.id === activityId);
       if (!activity) return;
 
+      const categoryFields = getCategoryCustomFieldsForActivity(activity);
+      const mergedNote = composeNoteWithCustomFields(categoryFields, modalBacklogFieldDrafts, noteVal);
+
       const newRecord = {
         id: 'h-' + Date.now(),
         timestamp: targetDate.getTime(),
-        note: noteVal,
+        note: mergedNote,
+        customFieldValues: { ...modalBacklogFieldDrafts },
         image: modalBacklogImage || ''
       };
 
@@ -1790,7 +2517,7 @@
       showToast(`已建立分類「${val}」`);
     }
 
-    // --- EDIT NAME & CUSTOM COLORS (ITEM OR CATEGORY) MODAL ---
+    // --- EDIT NAME, CUSTOM COLORS, CATEGORY CUSTOM FIELDS & ITEM SUB-ITEMS MODAL ---
     function normalizeHexColor(raw) {
       if (!raw) return null;
       let val = raw.trim();
@@ -1899,24 +2626,181 @@
       showToast(`已加入色票 ${normalized}`);
     }
 
-    async function deleteSelectedCustomColor() {
+    function deleteSelectedCustomColor() {
       const currentColor = editNameState.color || '';
       if (!currentColor) return;
-      customColors = customColors.filter(c => c.toLowerCase() !== currentColor.toLowerCase());
-      await saveCustomColors();
-      editNameState.color = '';
-      renderEditItemColorSwatches(true);
-      showToast("已刪除自訂色票");
+      triggerConfirm('刪除自訂色票', `確定要刪除自訂色票「${currentColor}」嗎？`, async () => {
+        customColors = customColors.filter(c => c.toLowerCase() !== currentColor.toLowerCase());
+        await saveCustomColors();
+        editNameState.color = '';
+        renderEditItemColorSwatches(true);
+        showToast("已刪除自訂色票");
+      });
     }
 
-    function openEditItemNameModal(activityId) {
-      const act = activities.find(a => a.id === activityId);
-      if (!act) return;
+    // --- CATEGORY CUSTOM FIELDS EDITING HELPERS ---
+    function resetCustomFieldForm() {
+      editNameState.editingFieldId = null;
+      const titleEl = document.getElementById('catFieldFormModeTitle');
+      const cancelBtn = document.getElementById('cancelEditCatFieldBtn');
+      const saveBtn = document.getElementById('saveCatFieldFormBtn');
+      const nameInput = document.getElementById('newCatFieldNameInput');
+      const typeSelect = document.getElementById('newCatFieldTypeSelect');
+
+      if (titleEl) titleEl.innerText = '新增自定義欄位';
+      if (cancelBtn) cancelBtn.classList.add('hidden');
+      if (saveBtn) {
+        saveBtn.innerHTML = `<i class="ph ph-plus text-xs"></i><span>新增自定義欄位</span>`;
+      }
+      if (nameInput) nameInput.value = '';
+      if (typeSelect) typeSelect.value = 'text';
+      renderEditCategoryFieldsList();
+    }
+
+    function startEditCustomFieldInCategory(fieldId) {
+      const field = editNameState.customFields.find(f => f.id === fieldId);
+      if (!field) return;
+
+      editNameState.editingFieldId = fieldId;
+      const titleEl = document.getElementById('catFieldFormModeTitle');
+      const cancelBtn = document.getElementById('cancelEditCatFieldBtn');
+      const saveBtn = document.getElementById('saveCatFieldFormBtn');
+      const nameInput = document.getElementById('newCatFieldNameInput');
+      const typeSelect = document.getElementById('newCatFieldTypeSelect');
+
+      if (titleEl) titleEl.innerText = '編輯自定義欄位';
+      if (cancelBtn) cancelBtn.classList.remove('hidden');
+      if (saveBtn) {
+        saveBtn.innerHTML = `<i class="ph ph-check text-xs"></i><span>儲存欄位修改</span>`;
+      }
+      if (nameInput) {
+        nameInput.value = field.name;
+        nameInput.focus();
+      }
+      if (typeSelect) typeSelect.value = field.type || 'text';
+      renderEditCategoryFieldsList();
+    }
+
+    function renderEditCategoryFieldsList() {
+      const listEl = document.getElementById('editCategoryFieldsList');
+      if (!listEl) return;
+      listEl.innerHTML = '';
+
+      if (editNameState.customFields.length === 0) {
+        listEl.innerHTML = `<p class="text-[11px] text-neutral-400 text-center py-2">尚無自定義欄位</p>`;
+        return;
+      }
+
+      editNameState.customFields.forEach((field, idx) => {
+        const isEditingThis = editNameState.editingFieldId === field.id;
+        const row = document.createElement('div');
+        row.className = `flex items-center justify-between p-2 rounded-xl border text-xs transition ${
+          isEditingThis
+            ? 'bg-blue-50/70 dark:bg-blue-950/30 border-blue-400 dark:border-blue-600'
+            : 'bg-white dark:bg-neutral-800 border-neutral-200/80 dark:border-neutral-700'
+        }`;
+        row.innerHTML = `
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span class="font-bold text-neutral-900 dark:text-neutral-100 truncate">${escapeHTML(field.name)}</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 font-semibold flex-shrink-0">
+              ${FIELD_TYPE_LABELS[field.type] || '文字'}
+            </span>
+          </div>
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <button 
+              type="button" 
+              onclick="startEditCustomFieldInCategory('${field.id}')"
+              class="p-1 rounded-lg bg-neutral-100 dark:bg-neutral-700/80 hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-600 dark:text-neutral-300 transition"
+              title="編輯欄位"
+            >
+              <i class="ph ph-pencil-simple text-xs"></i>
+            </button>
+            <button 
+              type="button" 
+              onclick="removeCustomFieldFromEditingCategory(${idx})"
+              class="p-1 rounded-lg bg-neutral-100 dark:bg-neutral-700/80 hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-400 hover:text-red-500 transition"
+              title="移除欄位"
+            >
+              <i class="ph ph-trash text-xs"></i>
+            </button>
+          </div>
+        `;
+        listEl.appendChild(row);
+      });
+    }
+
+    function addCustomFieldToEditingCategory() {
+      const nameInput = document.getElementById('newCatFieldNameInput');
+      const typeSelect = document.getElementById('newCatFieldTypeSelect');
+      const nameVal = nameInput ? nameInput.value.trim() : '';
+      const typeVal = typeSelect ? typeSelect.value : 'text';
+
+      if (!nameVal) {
+        showToast("請輸入欄位名稱", "ph-warning");
+        return;
+      }
+
+      if (editNameState.editingFieldId) {
+        const duplicate = editNameState.customFields.some(
+          f => f.id !== editNameState.editingFieldId && f.name.toLowerCase() === nameVal.toLowerCase()
+        );
+        if (duplicate) {
+          showToast("此欄位名稱已存在", "ph-warning");
+          return;
+        }
+        const targetField = editNameState.customFields.find(f => f.id === editNameState.editingFieldId);
+        if (targetField) {
+          targetField.name = nameVal;
+          targetField.type = typeVal;
+        }
+        resetCustomFieldForm();
+        return;
+      }
+
+      if (editNameState.customFields.some(f => f.name.toLowerCase() === nameVal.toLowerCase())) {
+        showToast("此欄位名稱已存在", "ph-warning");
+        return;
+      }
+
+      editNameState.customFields.push({
+        id: 'cf-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        name: nameVal,
+        type: typeVal
+      });
+
+      if (nameInput) nameInput.value = '';
+      renderEditCategoryFieldsList();
+    }
+
+    function removeCustomFieldFromEditingCategory(idx) {
+      const target = editNameState.customFields[idx];
+      if (!target) return;
+      triggerConfirm('刪除自定義欄位', `確定要刪除欄位「${target.name}」嗎？`, () => {
+        if (editNameState.editingFieldId === target.id) {
+          resetCustomFieldForm();
+        }
+        editNameState.customFields.splice(idx, 1);
+        renderEditCategoryFieldsList();
+        showToast("已刪除欄位");
+      });
+    }
+
+    function openEditCategoryNameModal(catName) {
+      if (!catName) return;
+      const existingConfig = categoryConfigs[catName] || {};
+      const existingFields = Array.isArray(existingConfig.customFields)
+        ? existingConfig.customFields.map(f => ({ ...f }))
+        : [];
 
       editNameState = {
-        type: 'item',
-        id: activityId,
-        color: act.color || ''
+        type: 'category',
+        id: catName,
+        color: '',
+        customFields: existingFields,
+        editingFieldId: null,
+        fieldValues: {},
+        subItems: [],
+        editingSubItemId: null
       };
 
       const modal = document.getElementById('editNameModal');
@@ -1924,11 +2808,234 @@
       const labelEl = document.getElementById('editNameModalLabel');
       const input = document.getElementById('editNameInput');
       const colorSection = document.getElementById('editItemColorSection');
+      const catFieldsSection = document.getElementById('editCategoryCustomFieldsSection');
+
+      if (titleEl) titleEl.innerText = "編輯分類設定";
+      if (labelEl) labelEl.innerText = "分類名稱 (將同步更新所屬項目)";
+      if (colorSection) colorSection.classList.add('hidden');
+      if (catFieldsSection) catFieldsSection.classList.remove('hidden');
+
+      resetCustomFieldForm();
+
+      if (input) {
+        input.value = catName;
+        input.focus();
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    // --- ITEM SUB-ITEMS EDITING HELPERS ---
+    function toggleAddSubItemForm(forceState, editSubId = null) {
+      const box = document.getElementById('addSubItemFormBox');
+      const titleEl = document.getElementById('subItemFormModeTitle');
+      const saveBtn = document.getElementById('saveSubItemFormBtn');
+      const contentInput = document.getElementById('newSubItemContentInput');
+      const startInput = document.getElementById('newSubItemStartInput');
+      const endInput = document.getElementById('newSubItemEndInput');
+      if (!box) return;
+
+      if (editSubId) {
+        const targetSub = editNameState.subItems.find(s => s.id === editSubId);
+        if (!targetSub) return;
+        editNameState.editingSubItemId = editSubId;
+        if (titleEl) titleEl.innerText = '編輯細項';
+        if (saveBtn) saveBtn.innerText = '儲存修改';
+        if (contentInput) contentInput.value = targetSub.content || '';
+        if (startInput) startInput.value = targetSub.startDate || '';
+        if (endInput) endInput.value = targetSub.endDate || '';
+        box.classList.remove('hidden');
+        if (contentInput) contentInput.focus();
+        return;
+      }
+
+      const shouldShow = typeof forceState === 'boolean' ? forceState : (box.classList.contains('hidden') || editNameState.editingSubItemId !== null);
+      editNameState.editingSubItemId = null;
+      if (titleEl) titleEl.innerText = '新增細項';
+      if (saveBtn) saveBtn.innerText = '加入細項';
+      if (contentInput) contentInput.value = '';
+      if (startInput) startInput.value = '';
+      if (endInput) endInput.value = '';
+
+      box.classList.toggle('hidden', !shouldShow);
+      if (shouldShow && contentInput) {
+        contentInput.focus();
+      }
+    }
+
+    function saveSubItemFromForm() {
+      const contentInput = document.getElementById('newSubItemContentInput');
+      const startInput = document.getElementById('newSubItemStartInput');
+      const endInput = document.getElementById('newSubItemEndInput');
+
+      const content = contentInput ? contentInput.value.trim() : '';
+      const startDate = startInput ? startInput.value : '';
+      const endDate = endInput ? endInput.value : '';
+
+      if (!content) {
+        showToast("請輸入細項內容", "ph-warning");
+        return;
+      }
+
+      if (editNameState.editingSubItemId) {
+        const targetSub = editNameState.subItems.find(s => s.id === editNameState.editingSubItemId);
+        if (targetSub) {
+          targetSub.content = content;
+          targetSub.startDate = startDate;
+          targetSub.endDate = endDate;
+        }
+      } else {
+        editNameState.subItems.push({
+          id: 'sub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+          content,
+          startDate,
+          endDate,
+          isArchived: false
+        });
+      }
+
+      toggleAddSubItemForm(false);
+      renderEditItemSubItemsList();
+    }
+
+    async function toggleSubItemArchiveInModal(subId) {
+      const sub = editNameState.subItems.find(s => s.id === subId);
+      if (!sub) return;
+      sub.isArchived = !sub.isArchived;
+
+      if (editNameState.type === 'item' && editNameState.id) {
+        const act = activities.find(a => a.id === editNameState.id);
+        if (act && Array.isArray(act.subItems)) {
+          const targetSub = act.subItems.find(s => s.id === subId);
+          if (targetSub) {
+            targetSub.isArchived = sub.isArchived;
+            await saveData();
+            renderDictionaryView(document.getElementById('dictSearchInput')?.value || '');
+          }
+        }
+      }
+
+      renderEditItemSubItemsList();
+      showToast(sub.isArchived ? `已封存細項「${sub.content}」` : `已解封細項「${sub.content}」`);
+    }
+
+    function removeSubItemInModal(subId) {
+      const target = editNameState.subItems.find(s => s.id === subId);
+      if (!target) return;
+      triggerConfirm('刪除細項', `確定要刪除細項「${target.content}」嗎？`, () => {
+        if (editNameState.editingSubItemId === subId) {
+          toggleAddSubItemForm(false);
+        }
+        editNameState.subItems = editNameState.subItems.filter(s => s.id !== subId);
+        renderEditItemSubItemsList();
+        showToast("已刪除細項");
+      });
+    }
+
+    function renderEditItemSubItemsList() {
+      const listEl = document.getElementById('editItemSubItemsList');
+      if (!listEl) return;
+      listEl.innerHTML = '';
+
+      const activeSubItems = editNameState.subItems.filter(s => !s.isArchived);
+
+      if (activeSubItems.length === 0) {
+        listEl.innerHTML = `<p class="text-[11px] text-neutral-400 text-center py-2">尚無細項</p>`;
+        return;
+      }
+
+      activeSubItems.forEach(sub => {
+        const isCurrentlyEditing = editNameState.editingSubItemId === sub.id;
+        const row = document.createElement('div');
+        row.className = `p-2 rounded-xl border text-xs flex items-center justify-between gap-2 transition ${
+          isCurrentlyEditing
+            ? 'bg-blue-50/70 dark:bg-blue-950/30 border-blue-400 dark:border-blue-600'
+            : 'bg-white dark:bg-neutral-800 border-neutral-200/80 dark:border-neutral-700 hover:border-neutral-400 dark:hover:border-neutral-500'
+        }`;
+
+        let dateSpan = '';
+        if (sub.startDate || sub.endDate) {
+          const s = sub.startDate ? sub.startDate.replace(/-/g, '/') : '未設';
+          const e = sub.endDate ? sub.endDate.replace(/-/g, '/') : '進行中';
+          dateSpan = `<div class="text-[10px] font-mono text-neutral-400 mt-0.5">${s} ~ ${e}</div>`;
+        }
+
+        row.innerHTML = `
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-semibold text-neutral-900 dark:text-neutral-100 break-words">${escapeHTML(sub.content)}</span>
+            </div>
+            ${dateSpan}
+          </div>
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <button 
+              type="button" 
+              onclick="toggleAddSubItemForm(true, '${sub.id}')"
+              class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-700/80 hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-600 dark:text-neutral-300 transition"
+              title="編輯細項"
+            >
+              <i class="ph ph-pencil-simple text-xs"></i>
+            </button>
+            <button 
+              type="button" 
+              onclick="toggleSubItemArchiveInModal('${sub.id}')"
+              class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-700/80 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600 transition"
+              title="封存此細項（移至已封存項目，歷史備註保留）"
+            >
+              <i class="ph ph-archive-box text-xs"></i>
+            </button>
+            <button 
+              type="button" 
+              onclick="removeSubItemInModal('${sub.id}')"
+              class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-700/80 hover:bg-neutral-200 dark:hover:bg-neutral-600 text-neutral-400 hover:text-red-500 transition"
+              title="刪除細項"
+            >
+              <i class="ph ph-trash text-xs"></i>
+            </button>
+          </div>
+        `;
+        listEl.appendChild(row);
+      });
+    }
+
+    function openEditItemNameModal(activityId) {
+      const act = activities.find(a => a.id === activityId);
+      if (!act) return;
+
+      const clonedFieldValues = {};
+      if (act.fieldValues && typeof act.fieldValues === 'object') {
+        Object.keys(act.fieldValues).forEach(k => {
+          const v = act.fieldValues[k];
+          clonedFieldValues[k] = (v && typeof v === 'object') ? { ...v } : v;
+        });
+      }
+
+      editNameState = {
+        type: 'item',
+        id: activityId,
+        color: act.color || '',
+        customFields: [],
+        editingFieldId: null,
+        fieldValues: clonedFieldValues,
+        subItems: Array.isArray(act.subItems) ? act.subItems.map(s => ({ ...s })) : [],
+        editingSubItemId: null
+      };
+
+      const modal = document.getElementById('editNameModal');
+      const titleEl = document.getElementById('editNameModalTitle');
+      const labelEl = document.getElementById('editNameModalLabel');
+      const input = document.getElementById('editNameInput');
+      const colorSection = document.getElementById('editItemColorSection');
+      const catFieldsSection = document.getElementById('editCategoryCustomFieldsSection');
 
       if (titleEl) titleEl.innerText = "編輯項目設定";
       if (labelEl) labelEl.innerText = "追蹤項目名稱";
+      if (catFieldsSection) catFieldsSection.classList.add('hidden');
       if (colorSection) colorSection.classList.remove('hidden');
+      
+      toggleAddSubItemForm(false);
       renderEditItemColorSwatches();
+      renderEditItemSubItemsList();
 
       if (input) {
         input.value = act.name;
@@ -1938,32 +3045,28 @@
       modal.classList.remove('hidden');
     }
 
-    function openEditCategoryNameModal(oldCatName) {
-      editNameState = {
-        type: 'category',
-        id: oldCatName,
-        color: ''
-      };
+    function getLocalDateYMD(dateObj = new Date()) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
 
-      const modal = document.getElementById('editNameModal');
-      const titleEl = document.getElementById('editNameModalTitle');
-      const labelEl = document.getElementById('editNameModalLabel');
-      const input = document.getElementById('editNameInput');
-      const colorSection = document.getElementById('editItemColorSection');
+    function isSubItemAvailableOnDate(subItem, targetDateObj = new Date()) {
+      if (!subItem || subItem.isArchived) return false;
+      const targetStr = getLocalDateYMD(targetDateObj);
+      if (subItem.startDate && targetStr < subItem.startDate) return false;
+      if (subItem.endDate && targetStr > subItem.endDate) return false;
+      return true;
+    }
 
-      if (titleEl) titleEl.innerText = "編輯分類名稱";
-      if (labelEl) labelEl.innerText = "修改分類名稱（將同步更新所屬項目）";
-      if (colorSection) colorSection.classList.add('hidden');
-      if (input) {
-        input.value = oldCatName;
-        input.focus();
-      }
-
-      modal.classList.remove('hidden');
+    function getAvailableSubItemsForDate(activity, targetDateObj = new Date()) {
+      if (!activity || !Array.isArray(activity.subItems)) return [];
+      return activity.subItems.filter(s => isSubItemAvailableOnDate(s, targetDateObj));
     }
 
     function closeEditNameModal() {
-      editNameState = { type: null, id: null, color: '' };
+      editNameState = { type: null, id: null, color: '', customFields: [], editingFieldId: null, fieldValues: {}, subItems: [], editingSubItemId: null };
       document.getElementById('editNameModal').classList.add('hidden');
     }
 
@@ -1985,26 +3088,20 @@
           return;
         }
 
-        const oldName = act.name;
         act.name = newName;
         act.color = editNameState.color || '';
+        act.fieldValues = { ...editNameState.fieldValues };
+        act.subItems = editNameState.subItems.map(s => ({ ...s }));
+        
         await saveData();
         closeEditNameModal();
         refreshAll();
-        if (oldName !== newName) {
-          showToast(`已更新「${newName}」設定`);
-        } else {
-          showToast(`已更新「${newName}」顏色設定`);
-        }
+        showToast(`已更新「${newName}」設定`);
 
       } else if (editNameState.type === 'category') {
         const oldCatName = editNameState.id;
-        if (oldCatName === newName) {
-          closeEditNameModal();
-          return;
-        }
 
-        if (categories.includes(newName)) {
+        if (oldCatName !== newName && categories.includes(newName)) {
           showToast("已存在相同名稱的分類", "ph-warning");
           return;
         }
@@ -2015,27 +3112,301 @@
           await saveCategories();
         }
 
-        activities.forEach(act => {
-          if (Array.isArray(act.categories)) {
-            const idx = act.categories.indexOf(oldCatName);
-            if (idx >= 0) {
-              act.categories[idx] = newName;
-            }
-          }
-        });
-        await saveData();
-
-        if (selectedHomeCategory === oldCatName) {
-          selectedHomeCategory = newName;
+        if (oldCatName !== newName) {
+          delete categoryConfigs[oldCatName];
         }
-        if (reportSelectedCalCategory === oldCatName) {
-          reportSelectedCalCategory = newName;
+        categoryConfigs[newName] = {
+          customFields: editNameState.customFields.map(f => ({ ...f }))
+        };
+        await saveCategoryConfigs();
+
+        if (oldCatName !== newName) {
+          activities.forEach(act => {
+            if (Array.isArray(act.categories)) {
+              const idx = act.categories.indexOf(oldCatName);
+              if (idx >= 0) {
+                act.categories[idx] = newName;
+              }
+            }
+          });
+          await saveData();
+
+          if (selectedHomeCategory === oldCatName) {
+            selectedHomeCategory = newName;
+          }
+          if (reportSelectedCalCategory === oldCatName) {
+            reportSelectedCalCategory = newName;
+          }
         }
 
         closeEditNameModal();
         refreshAll();
-        showToast(`已將分類「${oldCatName}」重新命名為「${newName}」`);
+        showToast(`已更新分類「${newName}」設定`);
       }
+    }
+
+    // --- QUICK RECORD MODAL ---
+    function openQuickRecordModal(activityId, imageBase64 = '') {
+      const act = activities.find(a => a.id === activityId);
+      if (!act) return;
+
+      const activeSubItems = getAvailableSubItemsForDate(act, new Date());
+      const categoryFields = getCategoryCustomFieldsForActivity(act);
+
+      const initialFieldVals = {};
+      categoryFields.forEach(f => {
+        if (act.fieldValues && act.fieldValues[f.id] !== undefined) {
+          const v = act.fieldValues[f.id];
+          initialFieldVals[f.id] = (v && typeof v === 'object') ? { ...v } : v;
+        } else {
+          initialFieldVals[f.id] = '';
+        }
+      });
+
+      quickRecordState = {
+        activityId: act.id,
+        image: imageBase64 || '',
+        selectedSubItemIds: [],
+        fieldValues: initialFieldVals,
+        categoryFields
+      };
+
+      const modal = document.getElementById('quickRecordModal');
+      const titleEl = document.getElementById('quickRecordModalTitle');
+      const subEl = document.getElementById('quickRecordModalSub');
+      const extraNoteInput = document.getElementById('quickRecordExtraNoteInput');
+      const imgBox = document.getElementById('quickRecordImagePreviewBox');
+      const imgEl = document.getElementById('quickRecordImagePreview');
+
+      if (titleEl) titleEl.innerText = act.name;
+      if (subEl) subEl.innerText = `${formatPreciseDate(Date.now())} 打卡記錄`;
+      if (extraNoteInput) {
+        extraNoteInput.value = '';
+        extraNoteInput.style.height = 'auto';
+      }
+
+      if (imgBox && imgEl) {
+        if (quickRecordState.image) {
+          imgEl.src = quickRecordState.image;
+          imgBox.classList.remove('hidden');
+          imgBox.classList.add('flex');
+        } else {
+          imgEl.src = '';
+          imgBox.classList.add('hidden');
+          imgBox.classList.remove('flex');
+        }
+      }
+
+      renderQuickRecordSubItems(activeSubItems);
+      renderQuickRecordCustomFields();
+
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeQuickRecordModal() {
+      quickRecordState = {
+        activityId: null,
+        image: '',
+        selectedSubItemIds: [],
+        fieldValues: {},
+        categoryFields: []
+      };
+      const modal = document.getElementById('quickRecordModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function clearQuickRecordImage() {
+      quickRecordState.image = '';
+      const imgBox = document.getElementById('quickRecordImagePreviewBox');
+      const imgEl = document.getElementById('quickRecordImagePreview');
+      if (imgEl) imgEl.src = '';
+      if (imgBox) {
+        imgBox.classList.add('hidden');
+        imgBox.classList.remove('flex');
+      }
+    }
+
+    function toggleQuickRecordSubItem(subId) {
+      const idx = quickRecordState.selectedSubItemIds.indexOf(subId);
+      if (idx >= 0) {
+        quickRecordState.selectedSubItemIds.splice(idx, 1);
+      } else {
+        quickRecordState.selectedSubItemIds.push(subId);
+      }
+      const act = activities.find(a => a.id === quickRecordState.activityId);
+      const activeSubItems = act ? getAvailableSubItemsForDate(act, new Date()) : [];
+      renderQuickRecordSubItems(activeSubItems);
+    }
+
+    function renderQuickRecordSubItems(activeSubItems) {
+      const section = document.getElementById('quickRecordSubItemsSection');
+      const container = document.getElementById('quickRecordSubItemsContainer');
+      if (!section || !container) return;
+
+      if (!activeSubItems || activeSubItems.length === 0) {
+        section.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+      }
+
+      section.classList.remove('hidden');
+      container.innerHTML = '';
+
+      activeSubItems.forEach(sub => {
+        const isSelected = quickRecordState.selectedSubItemIds.includes(sub.id);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `text-xs px-2.5 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 text-left ${
+          isSelected
+            ? 'bg-blue-600 text-white border-blue-600 font-bold shadow-xs'
+            : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:border-neutral-400'
+        }`;
+
+        let dateHint = '';
+        if (sub.startDate || sub.endDate) {
+          const s = sub.startDate ? sub.startDate.slice(5).replace('-', '/') : '';
+          const e = sub.endDate ? sub.endDate.slice(5).replace('-', '/') : '';
+          dateHint = `<span class="text-[10px] font-mono opacity-75">(${s}~${e})</span>`;
+        }
+
+        btn.innerHTML = `
+          <i class="ph ${isSelected ? 'ph-check-square' : 'ph-square'} text-sm flex-shrink-0"></i>
+          <span class="break-words">${escapeHTML(sub.content)}</span>
+          ${dateHint}
+        `;
+        btn.onclick = () => toggleQuickRecordSubItem(sub.id);
+        container.appendChild(btn);
+      });
+    }
+
+    function setQuickRecordRating(fieldId, val) {
+      quickRecordState.fieldValues[fieldId] = val;
+      renderQuickRecordCustomFields();
+    }
+
+    function updateQuickRecordFieldText(fieldId, val) {
+      quickRecordState.fieldValues[fieldId] = val;
+    }
+
+    function updateQuickRecordCurrencyField(fieldId, newAmount, newCurrency) {
+      const prev = parseCurrencyFieldValue(quickRecordState.fieldValues[fieldId]);
+      const updated = {
+        amount: newAmount !== null ? newAmount : prev.amount,
+        currency: newCurrency !== null ? newCurrency : prev.currency
+      };
+      quickRecordState.fieldValues[fieldId] = updated;
+      refreshCurrencyPreviewElement(`quick-rec-curr-prev-${fieldId}`, updated);
+    }
+
+    function renderQuickRecordCustomFields() {
+      const section = document.getElementById('quickRecordCustomFieldsSection');
+      const container = document.getElementById('quickRecordCustomFieldsContainer');
+      if (!section || !container) return;
+
+      const fields = quickRecordState.categoryFields || [];
+      if (fields.length === 0) {
+        section.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+      }
+
+      section.classList.remove('hidden');
+      container.innerHTML = '';
+
+      fields.forEach(field => {
+        const curVal = quickRecordState.fieldValues[field.id] !== undefined ? quickRecordState.fieldValues[field.id] : '';
+        const box = document.createElement('div');
+        box.className = "p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/70 border border-neutral-200/80 dark:border-neutral-700/80 space-y-1";
+
+        let inputHTML = '';
+        if (field.type === 'rating') {
+          inputHTML = renderStarRatingHTML(curVal, 'setQuickRecordRating', field.id);
+        } else if (field.type === 'currency') {
+          inputHTML = buildCurrencyInputControlHTML(
+            field.id,
+            curVal,
+            `updateQuickRecordCurrencyField('${field.id}', this.value, null)`,
+            `updateQuickRecordCurrencyField('${field.id}', null, this.value)`,
+            `quick-rec-curr-prev-${field.id}`
+          );
+        } else if (field.type === 'number') {
+          inputHTML = `
+            <input 
+              type="number" 
+              step="any"
+              value="${escapeHTML(String(curVal))}"
+              placeholder="輸入數字..."
+              oninput="updateQuickRecordFieldText('${field.id}', this.value)"
+              class="w-full bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-xs font-mono px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 focus:outline-none"
+            />
+          `;
+        } else {
+          inputHTML = `
+            <input 
+              type="text" 
+              value="${escapeHTML(String(curVal))}"
+              placeholder="輸入${escapeHTML(field.name)}..."
+              oninput="updateQuickRecordFieldText('${field.id}', this.value)"
+              class="w-full bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 text-xs px-2.5 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 focus:outline-none"
+            />
+          `;
+        }
+
+        box.innerHTML = `
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="font-bold text-neutral-800 dark:text-neutral-200">${escapeHTML(field.name)}</span>
+            <span class="text-[10px] text-neutral-400">${escapeHTML(field.categoryName)}</span>
+          </div>
+          ${inputHTML}
+        `;
+        container.appendChild(box);
+      });
+    }
+
+    async function submitQuickRecordModal() {
+      const act = activities.find(a => a.id === quickRecordState.activityId);
+      if (!act) return;
+
+      const plainLines = [];
+
+      if (quickRecordState.selectedSubItemIds.length > 0 && Array.isArray(act.subItems)) {
+        const chosenNames = quickRecordState.selectedSubItemIds
+          .map(id => act.subItems.find(s => s.id === id))
+          .filter(Boolean)
+          .map(s => s.content);
+        if (chosenNames.length > 0) {
+          plainLines.push(chosenNames.join('、'));
+        }
+      }
+
+      const extraInput = document.getElementById('quickRecordExtraNoteInput');
+      const extraText = extraInput ? extraInput.value.trim() : '';
+      if (extraText) {
+        plainLines.push(extraText);
+      }
+
+      if (!act.fieldValues || typeof act.fieldValues !== 'object') act.fieldValues = {};
+      Object.assign(act.fieldValues, quickRecordState.fieldValues);
+
+      const mergedNote = composeNoteWithCustomFields(
+        quickRecordState.categoryFields,
+        quickRecordState.fieldValues,
+        plainLines.join('\n')
+      );
+
+      const newRecord = {
+        id: 'h-' + Date.now(),
+        timestamp: Date.now(),
+        note: mergedNote,
+        customFieldValues: { ...quickRecordState.fieldValues },
+        image: quickRecordState.image || ''
+      };
+
+      act.history.unshift(newRecord);
+      await saveData();
+      closeQuickRecordModal();
+      refreshAll();
+      showToast(`已記錄「${act.name}」`);
     }
 
     // --- MINI CALENDAR COMPONENT ---
@@ -2177,6 +3548,8 @@
         name: clean,
         categories: initialCategories,
         color: '',
+        fieldValues: {},
+        subItems: [],
         isArchived: false,
         targetIntervalDays: null,
         history: [
@@ -2184,6 +3557,7 @@
             id: 'h-' + Date.now(),
             timestamp: Date.now(),
             note: '',
+            customFieldValues: {},
             image: ''
           }
         ]
@@ -2275,7 +3649,10 @@
         items = items.filter(it => {
           const directMatch = it.name.toLowerCase().includes(q);
           const relatedByCat = (it.categories || []).some(cat => matchedCategories.has(cat));
-          const noteMatch = (it.history || []).some(h => (h.note || '').toLowerCase().includes(q));
+          const noteMatch = (it.history || []).some(h => 
+            (h.note || '').toLowerCase().includes(q) ||
+            getCustomFieldsSearchableText(it, h).includes(q)
+          );
           return directMatch || relatedByCat || noteMatch;
         });
 
@@ -2435,6 +3812,13 @@
           `;
         }
 
+        const latestCustomFieldsHTML = formatCustomFieldBadgesHTML(activity, latestRecord, 'mt-1');
+        let latestNoteHTML = '';
+        if (latestNote) {
+          const clampCls = isExpanded ? '' : 'line-clamp-3';
+          latestNoteHTML = `<div class="mt-1 text-xs text-neutral-400 dark:text-neutral-500 font-sans break-words whitespace-pre-line leading-snug ${clampCls}">${linkifyText(latestNote)}</div>`;
+        }
+
         timelineNode.innerHTML = `
           ${lineHTML}
           ${dotHTML}
@@ -2450,15 +3834,9 @@
                   ${overduePill}
                 </div>
                 
-                <div class="text-xs text-neutral-400 mt-1 font-mono">
-                  <span>${formatPreciseDate(latestTime)}</span>
-                </div>
-
-                ${latestNote ? `
-                  <div class="mt-1 text-xs text-neutral-400 dark:text-neutral-500 font-sans break-words whitespace-normal leading-normal">
-                    ${linkifyText(latestNote)}
-                  </div>
-                ` : ''}
+                <div class="text-xs text-neutral-400 mt-1 font-mono leading-snug">${formatPreciseDate(latestTime)}</div>
+                ${latestCustomFieldsHTML}
+                ${latestNoteHTML}
 
                 ${homeImagesHTML}
               </div>
@@ -2582,6 +3960,39 @@
       renderDictionaryView(searchVal);
     }
 
+    function toggleDictItemSubItemsExpand(activityId) {
+      if (expandedDictSubItemIds.has(activityId)) {
+        expandedDictSubItemIds.delete(activityId);
+      } else {
+        expandedDictSubItemIds.add(activityId);
+      }
+      renderDictionaryView(document.getElementById('dictSearchInput')?.value || '');
+    }
+
+    async function unarchiveSubItemFromDict(activityId, subItemId) {
+      const act = activities.find(a => a.id === activityId);
+      if (!act || !Array.isArray(act.subItems)) return;
+      const sub = act.subItems.find(s => s.id === subItemId);
+      if (!sub) return;
+      sub.isArchived = false;
+      await saveData();
+      refreshAll();
+      showToast(`已解封細項「${sub.content}」`);
+    }
+
+    function requestDeleteSubItemFromDict(activityId, subItemId) {
+      const act = activities.find(a => a.id === activityId);
+      if (!act || !Array.isArray(act.subItems)) return;
+      const sub = act.subItems.find(s => s.id === subItemId);
+      if (!sub) return;
+      triggerConfirm('刪除細項', `確定要從「${act.name}」永久刪除細項「${sub.content}」嗎？（已記錄的歷史備註不受影響）`, async () => {
+        act.subItems = act.subItems.filter(s => s.id !== subItemId);
+        await saveData();
+        refreshAll();
+        showToast(`已刪除細項「${sub.content}」`);
+      });
+    }
+
     function renderDictionaryView(filterQuery = '') {
       const q = filterQuery.trim().toLowerCase();
       const clearDictBtn = document.getElementById('clearDictSearchBtn');
@@ -2599,7 +4010,8 @@
           activeItems = activeItems.filter(a => 
             a.name.toLowerCase().includes(q) ||
             (a.categories || []).some(c => c.toLowerCase().includes(q)) ||
-            (a.history || []).some(h => (h.note || '').toLowerCase().includes(q))
+            (a.subItems || []).some(s => !s.isArchived && s.content.toLowerCase().includes(q)) ||
+            (a.history || []).some(h => (h.note || '').toLowerCase().includes(q) || getCustomFieldsSearchableText(a, h).includes(q))
           );
         }
 
@@ -2610,7 +4022,7 @@
         } else {
           activeItems.forEach(item => {
             const row = document.createElement('div');
-            row.className = "p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between gap-2";
+            row.className = "p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 space-y-2";
             
             const catPills = (item.categories && item.categories.length > 0)
               ? item.categories.map(c => `
@@ -2620,54 +4032,96 @@
                 `).join('')
               : '<span class="text-[10px] text-neutral-400">無分類</span>';
 
+            const activeSubItems = (item.subItems || []).filter(s => !s.isArchived);
+            const isSubExpanded = expandedDictSubItemIds.has(item.id);
+            const subBadge = activeSubItems.length > 0
+              ? `<button 
+                  type="button"
+                  onclick="toggleDictItemSubItemsExpand('${item.id}')"
+                  class="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/70 text-blue-600 dark:text-blue-400 font-semibold inline-flex items-center gap-0.5 transition active:scale-95"
+                  title="點擊展開或收合細項"
+                >
+                  <span>${activeSubItems.length} 細項</span>
+                  <i class="ph ${isSubExpanded ? 'ph-caret-up' : 'ph-caret-down'} text-[10px]"></i>
+                </button>`
+              : '';
+
             const latestTime = getLatestTimestamp(item);
             const colorDot = item.color
               ? `<span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: ${item.color};"></span>`
               : '';
 
-            row.innerHTML = `
-              <div class="min-w-0 flex-1 space-y-1">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                  ${colorDot}
-                  <span class="font-bold text-xs text-neutral-900 dark:text-neutral-100">${escapeHTML(item.name)}</span>
-                  ${catPills}
+            let expandedSubItemsHTML = '';
+            if (isSubExpanded && activeSubItems.length > 0) {
+              expandedSubItemsHTML = `
+                <div class="pt-2 border-t border-neutral-200/60 dark:border-neutral-800 space-y-1">
+                  ${activeSubItems.map(sub => {
+                    let dateSpan = '';
+                    if (sub.startDate || sub.endDate) {
+                      const s = sub.startDate ? sub.startDate.replace(/-/g, '/') : '未設';
+                      const e = sub.endDate ? sub.endDate.replace(/-/g, '/') : '進行中';
+                      dateSpan = `<span class="text-[10px] font-mono text-neutral-400 ml-1.5">${s} ~ ${e}</span>`;
+                    }
+                    return `
+                      <div class="flex items-center justify-between py-1 px-2 rounded-lg bg-white dark:bg-neutral-800/80 border border-neutral-100 dark:border-neutral-700/70 text-[11px]">
+                        <div class="min-w-0 flex-1 truncate">
+                          <span class="font-medium text-neutral-800 dark:text-neutral-200">${escapeHTML(sub.content)}</span>
+                          ${dateSpan}
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
                 </div>
-                ${latestTime ? `
-                  <div class="text-[11px] font-mono text-neutral-400">
-                    <span>最後記錄: ${formatPreciseDate(latestTime)}</span>
+              `;
+            }
+
+            row.innerHTML = `
+              <div class="flex items-center justify-between gap-2">
+                <div class="min-w-0 flex-1 space-y-1">
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    ${colorDot}
+                    <span class="font-bold text-xs text-neutral-900 dark:text-neutral-100">${escapeHTML(item.name)}</span>
+                    ${catPills}
+                    ${subBadge}
                   </div>
-                ` : ''}
+                  ${latestTime ? `
+                    <div class="text-[11px] font-mono text-neutral-400">
+                      <span>最後記錄: ${formatPreciseDate(latestTime)}</span>
+                    </div>
+                  ` : ''}
+                </div>
+                <div class="flex items-center gap-1 flex-shrink-0">
+                  <button 
+                    onclick="openEditItemNameModal('${item.id}')"
+                    class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
+                    title="編輯項目名稱、顏色與細項"
+                  >
+                    <i class="ph ph-pencil-simple text-sm"></i>
+                  </button>
+                  <button 
+                    onclick="openItemCategoryModal('${item.id}')"
+                    class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
+                    title="管理分類"
+                  >
+                    <i class="ph ph-tag text-sm"></i>
+                  </button>
+                  <button 
+                    onclick="toggleArchiveActivity('${item.id}')"
+                    class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
+                    title="封存此項目"
+                  >
+                    <i class="ph ph-archive-box text-sm"></i>
+                  </button>
+                  <button 
+                    onclick="requestDeleteActivity('${item.id}')"
+                    class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 hover:text-red-500 text-xs transition"
+                    title="永久刪除"
+                  >
+                    <i class="ph ph-trash text-sm"></i>
+                  </button>
+                </div>
               </div>
-              <div class="flex items-center gap-1">
-                <button 
-                  onclick="openEditItemNameModal('${item.id}')"
-                  class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
-                  title="編輯項目名稱與顏色"
-                >
-                  <i class="ph ph-pencil-simple text-sm"></i>
-                </button>
-                <button 
-                  onclick="openItemCategoryModal('${item.id}')"
-                  class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
-                  title="管理分類"
-                >
-                  <i class="ph ph-tag text-sm"></i>
-                </button>
-                <button 
-                  onclick="toggleArchiveActivity('${item.id}')"
-                  class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
-                  title="封存此項目"
-                >
-                  <i class="ph ph-archive-box text-sm"></i>
-                </button>
-                <button 
-                  onclick="requestDeleteActivity('${item.id}')"
-                  class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 hover:text-red-500 text-xs transition"
-                  title="永久刪除"
-                >
-                  <i class="ph ph-trash text-sm"></i>
-                </button>
-              </div>
+              ${expandedSubItemsHTML}
             `;
             activeList.appendChild(row);
           });
@@ -2689,6 +4143,22 @@
             card.className = "p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 space-y-2 select-none relative";
             
             const linkedActivities = activities.filter(a => !a.isArchived && (a.categories || []).includes(cat));
+            const customFields = (categoryConfigs[cat] && Array.isArray(categoryConfigs[cat].customFields))
+              ? categoryConfigs[cat].customFields
+              : [];
+
+            const fieldsHTML = customFields.length > 0
+              ? `<div class="flex items-center gap-1 flex-wrap pt-0.5">
+                  <span class="text-[10px] text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-0.5 mr-0.5">
+                    <i class="ph ph-sliders-horizontal text-[11px]"></i>欄位：
+                  </span>
+                  ${customFields.map(f => `
+                    <span class="text-[10px] px-1.5 py-0.2 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
+                      ${escapeHTML(f.name)}
+                    </span>
+                  `).join('')}
+                </div>`
+              : '';
 
             card.innerHTML = `
               <div class="flex items-center justify-between">
@@ -2702,7 +4172,7 @@
                   <button 
                     onclick="openEditCategoryNameModal('${escapeHTML(cat)}')"
                     class="text-[11px] text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white transition px-2 py-1 rounded hover:bg-neutral-200/50 dark:hover:bg-neutral-800 flex items-center gap-1"
-                    title="編輯分類名稱"
+                    title="編輯分類名稱與自定義欄位"
                   >
                     <i class="ph ph-pencil-simple text-xs"></i>
                     編輯
@@ -2717,6 +4187,7 @@
                   </button>
                 </div>
               </div>
+              ${fieldsHTML}
               <div class="flex items-center gap-1 flex-wrap">
                 ${linkedActivities.length > 0 
                   ? linkedActivities.map(a => `
@@ -2747,49 +4218,132 @@
           );
         }
 
-        if (archivedCountBadge) archivedCountBadge.innerText = `${archivedItems.length} 項`;
-
-        if (archivedItems.length === 0 && dictSubTab === 'archived') {
-          archivedList.innerHTML = `<div class="py-8 text-center text-xs text-neutral-400">無封存事項</div>`;
-        } else {
-          archivedItems.forEach(item => {
-            const row = document.createElement('div');
-            row.className = "p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between gap-2 opacity-80";
-            const colorDot = item.color
-              ? `<span class="w-2 h-2 rounded-full flex-shrink-0" style="background-color: ${item.color};"></span>`
-              : '';
-            
-            row.innerHTML = `
-              <div class="min-w-0 flex-1 flex items-center gap-1.5">
-                ${colorDot}
-                <span class="font-bold text-xs text-neutral-800 dark:text-neutral-200 truncate">${escapeHTML(item.name)}</span>
-              </div>
-              <div class="flex items-center gap-1">
-                <button 
-                  onclick="openEditItemNameModal('${item.id}')"
-                  class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
-                  title="編輯項目名稱與顏色"
-                >
-                  <i class="ph ph-pencil-simple text-sm"></i>
-                </button>
-                <button 
-                  onclick="toggleArchiveActivity('${item.id}')"
-                  class="px-2.5 py-1 text-xs rounded-lg bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold transition flex items-center gap-1"
-                >
-                  <i class="ph ph-arrow-counter-clockwise"></i>
-                  解封
-                </button>
-                <button 
-                  onclick="requestDeleteActivity('${item.id}')"
-                  class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 hover:text-red-500 text-xs transition"
-                  title="徹底刪除"
-                >
-                  <i class="ph ph-trash text-sm"></i>
-                </button>
-              </div>
-            `;
-            archivedList.appendChild(row);
+        const archivedSubItems = [];
+        activities.forEach(act => {
+          (act.subItems || []).forEach(sub => {
+            if (sub.isArchived) {
+              const matchesQuery = !q ||
+                sub.content.toLowerCase().includes(q) ||
+                act.name.toLowerCase().includes(q) ||
+                (act.categories || []).some(c => c.toLowerCase().includes(q));
+              if (matchesQuery) {
+                archivedSubItems.push({
+                  activityId: act.id,
+                  activityName: act.name,
+                  activityColor: act.color || '',
+                  subItem: sub
+                });
+              }
+            }
           });
+        });
+
+        const totalArchivedCount = archivedItems.length + archivedSubItems.length;
+        if (archivedCountBadge) archivedCountBadge.innerText = `${totalArchivedCount} 項`;
+
+        if (totalArchivedCount === 0 && dictSubTab === 'archived') {
+          archivedList.innerHTML = `<div class="py-8 text-center text-xs text-neutral-400">無封存事項或細項</div>`;
+        } else {
+          if (archivedItems.length > 0) {
+            if (archivedSubItems.length > 0) {
+              const secTitle = document.createElement('div');
+              secTitle.className = "text-[11px] font-bold text-neutral-400 px-1 pt-0.5";
+              secTitle.innerText = `已封存項目 (${archivedItems.length})`;
+              archivedList.appendChild(secTitle);
+            }
+
+            archivedItems.forEach(item => {
+              const row = document.createElement('div');
+              row.className = "p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between gap-2 opacity-80";
+              const colorDot = item.color
+                ? `<span class="w-2 h-2 rounded-full flex-shrink-0" style="background-color: ${item.color};"></span>`
+                : '';
+              
+              row.innerHTML = `
+                <div class="min-w-0 flex-1 flex items-center gap-1.5">
+                  ${colorDot}
+                  <span class="font-bold text-xs text-neutral-800 dark:text-neutral-200 truncate">${escapeHTML(item.name)}</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button 
+                    onclick="openEditItemNameModal('${item.id}')"
+                    class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 text-xs transition"
+                    title="編輯項目名稱與顏色"
+                  >
+                    <i class="ph ph-pencil-simple text-sm"></i>
+                  </button>
+                  <button 
+                    onclick="toggleArchiveActivity('${item.id}')"
+                    class="px-2.5 py-1 text-xs rounded-lg bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold transition flex items-center gap-1"
+                  >
+                    <i class="ph ph-arrow-counter-clockwise"></i>
+                    解封
+                  </button>
+                  <button 
+                    onclick="requestDeleteActivity('${item.id}')"
+                    class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 hover:text-red-500 text-xs transition"
+                    title="徹底刪除"
+                  >
+                    <i class="ph ph-trash text-sm"></i>
+                  </button>
+                </div>
+              `;
+              archivedList.appendChild(row);
+            });
+          }
+
+          if (archivedSubItems.length > 0) {
+            const subSecTitle = document.createElement('div');
+            subSecTitle.className = "text-[11px] font-bold text-neutral-400 px-1 pt-2";
+            subSecTitle.innerText = `已封存細項 (${archivedSubItems.length})`;
+            archivedList.appendChild(subSecTitle);
+
+            archivedSubItems.forEach(({ activityId, activityName, activityColor, subItem }) => {
+              const row = document.createElement('div');
+              row.className = "p-3 rounded-2xl bg-neutral-50 dark:bg-neutral-900/60 border border-neutral-200/80 dark:border-neutral-800 flex items-center justify-between gap-2 opacity-85";
+
+              let dateSpan = '';
+              if (subItem.startDate || subItem.endDate) {
+                const s = subItem.startDate ? subItem.startDate.replace(/-/g, '/') : '未設';
+                const e = subItem.endDate ? subItem.endDate.replace(/-/g, '/') : '進行中';
+                dateSpan = `<div class="text-[10px] font-mono text-neutral-400 mt-0.5">${s} ~ ${e}</div>`;
+              }
+
+              const dotHTML = activityColor
+                ? `<span class="w-1.5 h-1.5 rounded-full inline-block mr-1" style="background-color:${activityColor}"></span>`
+                : '';
+
+              row.innerHTML = `
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="font-bold text-xs text-neutral-800 dark:text-neutral-200 break-words">${escapeHTML(subItem.content)}</span>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded bg-neutral-200/80 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 inline-flex items-center">
+                      ${dotHTML}${escapeHTML(activityName)}
+                    </span>
+                  </div>
+                  ${dateSpan}
+                </div>
+                <div class="flex items-center gap-1 flex-shrink-0">
+                  <button 
+                    onclick="unarchiveSubItemFromDict('${activityId}', '${subItem.id}')"
+                    class="px-2.5 py-1 text-xs rounded-lg bg-neutral-900 text-white dark:bg-white dark:text-neutral-950 font-bold transition flex items-center gap-1"
+                    title="解除封存此細項"
+                  >
+                    <i class="ph ph-arrow-counter-clockwise"></i>
+                    解封
+                  </button>
+                  <button 
+                    onclick="requestDeleteSubItemFromDict('${activityId}', '${subItem.id}')"
+                    class="p-1.5 rounded-lg bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 hover:text-red-500 text-xs transition"
+                    title="刪除細項"
+                  >
+                    <i class="ph ph-trash text-sm"></i>
+                  </button>
+                </div>
+              `;
+              archivedList.appendChild(row);
+            });
+          }
         }
       }
     }
@@ -2980,6 +4534,7 @@
     function requestDeleteCategory(catName) {
       triggerConfirm('刪除分類', `確定要刪除「${catName}」分類嗎？相關事項不會被刪除，僅會移除此分類標籤。`, async () => {
         categories = categories.filter(c => c !== catName);
+        delete categoryConfigs[catName];
         activities.forEach(a => {
           if (Array.isArray(a.categories)) {
             a.categories = a.categories.filter(c => c !== catName);
@@ -2988,6 +4543,7 @@
         if (selectedHomeCategory === catName) selectedHomeCategory = 'ALL';
         if (reportSelectedCalCategory === catName) reportSelectedCalCategory = 'ALL';
         await saveCategories();
+        await saveCategoryConfigs();
         await saveData();
         refreshAll();
         showToast("分類已刪除");
@@ -3024,7 +4580,7 @@
         const catMatch = (act.categories || []).some(c => c.toLowerCase().includes(q));
 
         (act.history || []).forEach(h => {
-          const noteMatch = (h.note || '').toLowerCase().includes(q);
+          const noteMatch = (h.note || '').toLowerCase().includes(q) || getCustomFieldsSearchableText(act, h).includes(q);
           if (nameMatch || catMatch || noteMatch) {
             const d = new Date(h.timestamp);
             const y = d.getFullYear();
@@ -3048,6 +4604,8 @@
               dayGroups[dateKey].latestTs = h.timestamp;
             }
             dayGroups[dateKey].records.push({
+              activityObj: act,
+              recordObj: h,
               activityId: act.id,
               activityName: act.name,
               activityColor: act.color || '',
@@ -3082,6 +4640,7 @@
             : '';
           const dotStyle = rec.activityColor ? `style="background-color:${rec.activityColor}"` : '';
           const dotCls = rec.activityColor ? '' : 'bg-blue-600 dark:bg-blue-400';
+          const cfBadges = formatCustomFieldBadgesHTML(rec.activityObj, rec.recordObj, 'pl-3 pt-0.5');
 
           return `
             <div 
@@ -3096,6 +4655,7 @@
                 </div>
                 <span class="font-mono text-[11px] text-neutral-400 flex-shrink-0">${formatTimeOnly(rec.timestamp)}</span>
               </div>
+              ${cfBadges}
               ${rec.note ? `<p class="text-[11px] text-neutral-500 dark:text-neutral-400 whitespace-pre-line break-words pl-3">${linkifyText(rec.note)}</p>` : ''}
               ${rec.image ? `
                 <div class="pl-3 pt-0.5" onclick="event.stopPropagation()">
@@ -3119,7 +4679,6 @@
       });
     }
 
-    // --- ACCORDION FOR PERIOD SUMMARY BARS (DEFAULT CLOSED) ---
     function togglePeriodBarsAccordion() {
       isPeriodBarsExpanded = !isPeriodBarsExpanded;
       const container = document.getElementById('periodBarsAccordionContainer');
@@ -3134,7 +4693,6 @@
       }
     }
 
-    // --- CLEAR REPORT CALENDAR DATE DETAIL ---
     function clearReportCalDateDetail() {
       reportCalSelectedDate = null;
       reportCalSelectedDateKey = null;
@@ -3144,7 +4702,6 @@
       if (listEl) listEl.innerHTML = '';
     }
 
-    // --- REPORT CALENDAR (CATEGORY & ITEM CALENDARS WITH CUSTOM ITEM COLORS) ---
     function switchReportCalendarMode(mode) {
       reportCalMode = mode;
       const catBtn = document.getElementById('calModeCategoryBtn');
@@ -3297,6 +4854,7 @@
           : '';
         const dotStyle = rec.activityColor ? `style="background-color:${rec.activityColor}"` : '';
         const dotCls = rec.activityColor ? '' : 'bg-blue-600 dark:bg-blue-400';
+        const cfBadges = formatCustomFieldBadgesHTML(rec.activityObj, rec.recordObj, 'pl-3');
 
         row.innerHTML = `
           <div class="flex items-center justify-between gap-1.5">
@@ -3308,6 +4866,7 @@
             </div>
             <span class="font-mono text-neutral-400 text-[11px] flex-shrink-0">${formatTimeOnly(rec.timestamp)}</span>
           </div>
+          ${cfBadges}
           ${rec.note ? `<p class="text-[11px] text-neutral-500 dark:text-neutral-400 whitespace-pre-line pl-3">${linkifyText(rec.note)}</p>` : ''}
           ${rec.image ? `
             <div class="pl-3 pt-0.5">
@@ -3348,6 +4907,8 @@
             const dayNum = d.getDate();
             if (!dayRecordsMap[dayNum]) dayRecordsMap[dayNum] = [];
             dayRecordsMap[dayNum].push({
+              activityObj: act,
+              recordObj: h,
               activityName: act.name,
               activityCategory: (act.categories && act.categories.length > 0) ? act.categories[0] : '',
               activityColor: act.color || '',
@@ -3492,7 +5053,7 @@
       updateReportCalDateDetailView(dayRecordsMap, year, month);
     }
 
-    // --- OVERDUE ACCORDION TOGGLE (DEFAULT CLOSED) ---
+    // --- OVERDUE ACCORDION TOGGLE ---
     function toggleOverdueAccordion() {
       isOverdueExpanded = !isOverdueExpanded;
       const container = document.getElementById('overdueAccordionContainer');
@@ -3846,6 +5407,8 @@
       activities.forEach(act => {
         (act.history || []).forEach(h => {
           allLogs.push({
+            activityObj: act,
+            recordObj: h,
             activityId: act.id,
             activityName: act.name,
             activityColor: act.color || '',
@@ -3902,7 +5465,7 @@
             const row = document.createElement('div');
             row.className = "py-1.5 px-2.5 rounded-xl bg-white dark:bg-neutral-900/80 border border-neutral-100 dark:border-neutral-900 transition hover:border-neutral-300 dark:hover:border-neutral-700 space-y-0.5";
             const cleanNote = (log.note || '').replace(/^[\s\u3000]+/, '').trim();
-            const logImg = (activities.find(a => a.id === log.activityId)?.history || []).find(h => h.id === log.recordId)?.image;
+            const logImg = log.recordObj?.image;
             const imgThumbHTML = logImg ? `
               <div class="pt-1">
                 <img src="${logImg}" alt="縮圖" onclick="openImagePreviewModal(this.src)" class="w-10 h-10 object-cover rounded-lg border border-neutral-200 dark:border-neutral-700 cursor-pointer shadow-sm hover:opacity-90 transition" />
@@ -3913,6 +5476,7 @@
               : '';
             const dotStyle = log.activityColor ? `style="background-color:${log.activityColor}"` : '';
             const dotCls = log.activityColor ? '' : 'bg-neutral-400';
+            const cfBadges = formatCustomFieldBadgesHTML(log.activityObj, log.recordObj, 'pt-0.5');
 
             row.innerHTML = `
               <div class="flex items-center justify-between gap-2 text-xs">
@@ -3939,6 +5503,7 @@
                   </button>
                 </div>
               </div>
+              ${cfBadges}
               ${cleanNote ? `<div class="w-full text-left pt-0.5"><p class="text-xs font-sans text-neutral-600 dark:text-neutral-400 whitespace-pre-line break-words leading-normal select-text m-0 p-0">${linkifyText(cleanNote)}</p></div>` : ''}
               ${imgThumbHTML}
             `;
@@ -3957,14 +5522,27 @@
       }
     }
 
+    function shouldTriggerQuickRecordPopup(activity) {
+      if (!activity) return false;
+      const activeSubItems = getAvailableSubItemsForDate(activity, new Date());
+      const categoryFields = getCategoryCustomFieldsForActivity(activity);
+      return activeSubItems.length > 0 || categoryFields.length > 0;
+    }
+
     async function quickReLog(activityId) {
       const activity = activities.find(a => a.id === activityId);
       if (!activity) return;
+
+      if (shouldTriggerQuickRecordPopup(activity)) {
+        openQuickRecordModal(activityId, '');
+        return;
+      }
 
       const newRecord = {
         id: 'h-' + Date.now(),
         timestamp: Date.now(),
         note: '',
+        customFieldValues: {},
         image: ''
       };
 
@@ -3983,10 +5561,17 @@
 
       try {
         const thumbBase64 = await compressImageToThumbnail(file, 400, 0.65);
+
+        if (shouldTriggerQuickRecordPopup(activity)) {
+          openQuickRecordModal(activityId, thumbBase64);
+          return;
+        }
+
         const newRecord = {
           id: 'h-' + Date.now(),
           timestamp: Date.now(),
           note: '',
+          customFieldValues: {},
           image: thumbBase64
         };
 
@@ -4036,7 +5621,7 @@
       updateStorageUsageUI();
     }
 
-    // --- ACCURATE STORAGE USAGE CALCULATION (ESTIMATE & INDEXEDDB) ---
+    // --- ACCURATE STORAGE USAGE CALCULATION ---
     async function getStorageUsage() {
       let usedBytes = 0;
       let quotaBytes = 0;
@@ -4053,7 +5638,7 @@
 
       if (usedBytes === 0) {
         try {
-          const serialized = JSON.stringify(activities) + JSON.stringify(categories);
+          const serialized = JSON.stringify(activities) + JSON.stringify(categories) + JSON.stringify(categoryConfigs);
           usedBytes = serialized.length * 2;
           quotaBytes = 50 * 1024 * 1024;
         } catch (e) {}
@@ -4108,12 +5693,14 @@
 
           activities = [];
           categories = [...DEFAULT_CATEGORIES];
+          categoryConfigs = {};
           customColors = [];
           expandedItemId = null;
           focusedHeatmapActivityId = null;
 
           await saveData();
           await saveCategories();
+          await saveCategoryConfigs();
           await saveCustomColors();
           refreshAll();
           showToast('已清空 IndexedDB 資料庫並重置', 'ph-trash');
@@ -4196,6 +5783,18 @@
       document.getElementById('editNameInput')?.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') submitEditName();
       });
+      document.getElementById('newCatFieldNameInput')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.isComposing) {
+          e.preventDefault();
+          addCustomFieldToEditingCategory();
+        }
+      });
+      document.getElementById('newSubItemContentInput')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveSubItemFromForm();
+        }
+      });
 
       document.getElementById('closeDateActionBtn')?.addEventListener('click', closeDateActionModal);
 
@@ -4265,7 +5864,7 @@
       document.getElementById('clearAllDataBtn')?.addEventListener('click', requestClearAllData);
 
       document.getElementById('exportDataBtn')?.addEventListener('click', () => {
-        const exportPayload = { activities, categories, customColors, version: '3.0 (IndexedDB)' };
+        const exportPayload = { activities, categories, categoryConfigs, customColors, version: '3.2 (IndexedDB)' };
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportPayload, null, 2));
         const downloadAnchor = document.createElement('a');
         downloadAnchor.setAttribute("href", dataStr);
@@ -4289,7 +5888,16 @@
                 if (!item.categories) item.categories = item.category ? [item.category] : [];
                 if (typeof item.isArchived !== 'boolean') item.isArchived = false;
                 if (typeof item.color !== 'string') item.color = '';
-                if (item.history) item.history = item.history.map(h => ({ ...h, note: h.note || '', image: h.image || '' }));
+                if (!item.fieldValues || typeof item.fieldValues !== 'object') item.fieldValues = {};
+                if (!Array.isArray(item.subItems)) item.subItems = [];
+                if (item.history) {
+                  item.history = item.history.map(h => ({
+                    ...h,
+                    note: h.note || '',
+                    image: h.image || '',
+                    customFieldValues: (h.customFieldValues && typeof h.customFieldValues === 'object') ? h.customFieldValues : {}
+                  }));
+                }
                 return item;
               });
             } else if (imported.activities && Array.isArray(imported.activities)) {
@@ -4297,10 +5905,20 @@
                 if (!item.categories) item.categories = item.category ? [item.category] : [];
                 if (typeof item.isArchived !== 'boolean') item.isArchived = false;
                 if (typeof item.color !== 'string') item.color = '';
-                if (item.history) item.history = item.history.map(h => ({ ...h, note: h.note || '', image: h.image || '' }));
+                if (!item.fieldValues || typeof item.fieldValues !== 'object') item.fieldValues = {};
+                if (!Array.isArray(item.subItems)) item.subItems = [];
+                if (item.history) {
+                  item.history = item.history.map(h => ({
+                    ...h,
+                    note: h.note || '',
+                    image: h.image || '',
+                    customFieldValues: (h.customFieldValues && typeof h.customFieldValues === 'object') ? h.customFieldValues : {}
+                  }));
+                }
                 return item;
               });
               if (Array.isArray(imported.categories)) categories = imported.categories;
+              if (imported.categoryConfigs && typeof imported.categoryConfigs === 'object') categoryConfigs = imported.categoryConfigs;
               if (Array.isArray(imported.customColors)) customColors = imported.customColors;
             } else {
               showToast("格式錯誤，無法匯入", "ph-x-circle");
@@ -4308,6 +5926,7 @@
             }
             await saveData();
             await saveCategories();
+            await saveCategoryConfigs();
             await saveCustomColors();
             refreshAll();
             updateStorageUsageUI();
